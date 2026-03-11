@@ -1,7 +1,6 @@
 /*
  * HidOutput.h — Envoi HID (BLE + USB)
  * Centralise la logique keypad + Consumer Control
- * Standalone : fonctionne sur tout appareil sans app
  */
 #ifndef HID_OUTPUT_H
 #define HID_OUTPUT_H

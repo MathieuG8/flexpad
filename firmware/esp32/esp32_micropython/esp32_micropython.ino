@@ -5,8 +5,14 @@
  * Fonctionne sur n'importe quel appareil (phone, PC) sans app.
  * Configurable via interface web (Web Serial / Web Bluetooth).
  *
- * Dépendances: Adafruit NeoPixel (Sketch > Include Library)
- * Windows: USB recommandé. Arduino: Board = ESP32S3 Dev Module
+ * USB (cartes avec 2 ports):
+ *   - Port "USB" (natif): HID clavier + optionnel CDC (Serial). Brancher ICI pour le numpad.
+ *   - Port "UART"/"PROG": programmation + moniteur série uniquement (pas de HID).
+ * Si le numpad n'apparaît pas: brancher sur le port USB natif, pas sur UART.
+ * Voir firmware/esp32/USB_CONNECTION.md pour clavier + IDE ouverte.
+ *
+ * Dépendances: Adafruit NeoPixel
+ * Arduino: Board = ESP32S3 Dev Module
  */
 
 #include "Config.h"
@@ -92,7 +98,7 @@ int led_brightness = 128;
 bool backlight_enabled = true;
 bool env_brightness_enabled = false;  // Toggle "Selon l'environnement" du web
 
-// BLE
+// BLE (Bluedroid — Android, Windows, compatible)
 BLEServer* pServer = nullptr;
 BLECharacteristic* pInputCharacteristic = nullptr;
 BLECharacteristic* pSerialCharacteristic = nullptr;
@@ -200,53 +206,23 @@ void apply_keymap_defaults();
 // ==================== CALLBACKS BLE ====================
 
 class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
+    void onConnect(BLEServer* pSrv) override {
         deviceConnected = true;
         hidOutput.setBleState(true, pInputCharacteristic);
         Serial.println("[BLE] Client connected");
-        
-        delay(800);
-        send_display_data_to_atmega();
-        
-        if (pInputCharacteristic != nullptr) {
-            uint8_t empty_report[9] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-            for (int i = 0; i < 3; i++) {
-                pInputCharacteristic->setValue(empty_report, 9);
-                delay(50);
-                pInputCharacteristic->notify();
-                delay(150);
-            }
-            Serial.println("[BLE] HID activated (Windows/macOS/Linux/Android/iOS)");
-        }
     }
-    void onDisconnect(BLEServer* pServer) {
+    void onDisconnect(BLEServer* pSrv) override {
         deviceConnected = false;
         hidOutput.setBleState(false, nullptr);
-        send_display_data_to_atmega();
-        if (pInputCharacteristic != nullptr) {
-            uint8_t release[9] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-            pInputCharacteristic->setValue(release, 9);
-            pInputCharacteristic->notify();
-        }
         Serial.println("[BLE] Client disconnected");
     }
 };
 
 class SerialCharacteristicCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic* pCharacteristic) {
-        std::string value = pCharacteristic->getValue();
+    void onWrite(BLECharacteristic* pCharacteristic) override {
+        String value = pCharacteristic->getValue();
         if (value.length() > 0) {
-            String message = String(value.c_str());
-            bleSerialBuffer += message;
-            
-            int newlinePos;
-            while ((newlinePos = bleSerialBuffer.indexOf('\n')) >= 0) {
-                String completeMessage = bleSerialBuffer.substring(0, newlinePos);
-                bleSerialBuffer = bleSerialBuffer.substring(newlinePos + 1);
-                if (completeMessage.length() > 0) {
-                    processWebMessage(completeMessage);
-                }
-            }
+            bleSerialBuffer += value;
         }
     }
 };
@@ -254,7 +230,8 @@ class SerialCharacteristicCallbacks: public BLECharacteristicCallbacks {
 // ==================== SETUP ====================
 
 void setup() {
-    // IMPORTANT: Tools > USB CDC On Boot > Enabled (pour voir le Serial)
+    // IMPORTANT: Tools > USB CDC On Boot: Enabled = Serial sur port USB natif.
+    //            Disabled = HID seul sur port USB natif; utiliser port UART pour Serial/flash.
     // Délai pour laisser le port USB s'initialiser après le boot
     delay(2000);
     
@@ -276,133 +253,66 @@ void setup() {
     try {
         BLEDevice::init("Macropad Keyboard");
         
-        // Configurer la sécurité BLE pour réduire les warnings SMP
+        // Configurer la sécurité BLE — évite échecs d’appairage iOS sur HID personnalisés
         BLESecurity* pSecurity = new BLESecurity();
         pSecurity->setAuthenticationMode(ESP_LE_AUTH_NO_BOND);
         pSecurity->setCapability(ESP_IO_CAP_NONE);
         pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
-        
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new MyServerCallbacks());
-        
-        // Service HID
         BLEService* pService = pServer->createService(BLEUUID((uint16_t)0x1812));
-        
-        // HID Information Characteristic (requis pour HID, important pour iPhone)
-        BLECharacteristic* pInfoCharacteristic = pService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A4A),
-            BLECharacteristic::PROPERTY_READ
-        );
-        // Format: bcdHID (version HID 1.01), bCountryCode (0 = not localized), Flags (0x03 = remote wake + normally connectable)
         uint8_t info[] = {0x01, 0x01, 0x00, 0x03};
-        pInfoCharacteristic->setValue(info, 4);
-        
-        // HID Report Map
-        BLECharacteristic* pReportMapCharacteristic = pService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A4B),
-            BLECharacteristic::PROPERTY_READ
-        );
-        // Report Map: Keyboard + Keypad (0x00-0x81 inclut Volume Up/Down/Mute pour Android BLE)
+        BLECharacteristic* pInfo = pService->createCharacteristic(BLEUUID((uint16_t)0x2A4A), BLECharacteristic::PROPERTY_READ);
+        pInfo->setValue(info, 4);
         uint8_t reportMap[] = {
-            0x05, 0x01, 0x09, 0x06, 0xA1, 0x01,
-            0x85, 0x01,
-            0x05, 0x07, 0x19, 0xE0, 0x29, 0xE7,
-            0x15, 0x00, 0x25, 0x01, 0x75, 0x01, 0x95, 0x08,
-            0x81, 0x02, 0x95, 0x01, 0x75, 0x08, 0x81, 0x01,
-            0x95, 0x06, 0x75, 0x08, 0x15, 0x00, 0x25, 0x81,
-            0x05, 0x07, 0x19, 0x00, 0x29, 0x81, 0x81, 0x00,
-            0xC0,
-            0x05, 0x0C, 0x09, 0x01, 0xA1, 0x01,
-            0x85, 0x02,
-            0x15, 0x00, 0x26, 0x9C, 0x02,
-            0x75, 0x10, 0x95, 0x01,             0x09, 0xE9, 0x09, 0xEA, 0x09, 0xE2, 0x09, 0xB5, 0x09, 0xB6, 0x09, 0xCD,
-            0x81, 0x00, 0xC0
+            0x05, 0x01, 0x09, 0x06, 0xA1, 0x01, 0x85, 0x01,
+            0x05, 0x07, 0x19, 0xE0, 0x29, 0xE7, 0x15, 0x00, 0x25, 0x01, 0x75, 0x01, 0x95, 0x08,
+            0x81, 0x02, 0x95, 0x01, 0x75, 0x08, 0x81, 0x01, 0x95, 0x06, 0x75, 0x08, 0x15, 0x00, 0x25, 0x81,
+            0x05, 0x07, 0x19, 0x00, 0x29, 0x81, 0x81, 0x00, 0xC0,
+            0x05, 0x0C, 0x09, 0x01, 0xA1, 0x01, 0x85, 0x02,
+            0x15, 0x00, 0x26, 0x9C, 0x02, 0x75, 0x10, 0x95, 0x01, 0x09, 0xE9, 0x09, 0xEA, 0x09, 0xE2, 0x09, 0xB5, 0x09, 0xB6, 0x09, 0xCD, 0x81, 0x00, 0xC0
         };
-        pReportMapCharacteristic->setValue(reportMap, sizeof(reportMap));
-        
-        // HID Protocol Mode (requis pour HID)
-        BLECharacteristic* pProtocolModeCharacteristic = pService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A4E),
-            BLECharacteristic::PROPERTY_READ | 
-            BLECharacteristic::PROPERTY_WRITE_NR
-        );
-        uint8_t protocolMode = 0x01; // Report Protocol (requis pour HID)
-        pProtocolModeCharacteristic->setValue(&protocolMode, 1);
-        
-        // HID Control Point (requis pour Windows - suspend/resume)
-        BLECharacteristic* pControlPointCharacteristic = pService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A4C),
-            BLECharacteristic::PROPERTY_WRITE_NR
-        );
-        uint8_t controlPoint = 0x00; // Suspend
-        pControlPointCharacteristic->setValue(&controlPoint, 1);
-        
-        // HID Input Report
-        pInputCharacteristic = pService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A4D),
-            BLECharacteristic::PROPERTY_READ | 
-            BLECharacteristic::PROPERTY_NOTIFY |
-            BLECharacteristic::PROPERTY_WRITE_NR
-        );
+        BLECharacteristic* pMap = pService->createCharacteristic(BLEUUID((uint16_t)0x2A4B), BLECharacteristic::PROPERTY_READ);
+        pMap->setValue(reportMap, sizeof(reportMap));
+        uint8_t proto = 0x01;
+        BLECharacteristic* pProto = pService->createCharacteristic(BLEUUID((uint16_t)0x2A4E), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE_NR);
+        pProto->setValue(&proto, 1);
+        uint8_t ctrl = 0x00;
+        BLECharacteristic* pCtrl = pService->createCharacteristic(BLEUUID((uint16_t)0x2A4C), BLECharacteristic::PROPERTY_WRITE_NR);
+        pCtrl->setValue(&ctrl, 1);
+        pInputCharacteristic = pService->createCharacteristic(BLEUUID((uint16_t)0x2A4D), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_WRITE_NR);
         pInputCharacteristic->addDescriptor(new BLE2902());
-        
-        // Initialiser le report avec une valeur par défaut (important pour Windows/Android)
         uint8_t empty_report[9] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
         pInputCharacteristic->setValue(empty_report, 9);
-        
         pService->start();
-        
-        // Device Information Service (améliore compatibilité Windows)
-        BLEService* pDevInfoService = pServer->createService(BLEUUID((uint16_t)0x180A));
-        BLECharacteristic* pManufacturerCharacteristic = pDevInfoService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A29),
-            BLECharacteristic::PROPERTY_READ
-        );
-        pManufacturerCharacteristic->setValue("Macropad");
-        BLECharacteristic* pModelCharacteristic = pDevInfoService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A24),
-            BLECharacteristic::PROPERTY_READ
-        );
-        pModelCharacteristic->setValue("Keyboard");
-        pDevInfoService->start();
-        
-        // Battery Service (requis par certains pilotes Windows BLE HID)
-        BLEService* pBatteryService = pServer->createService(BLEUUID((uint16_t)0x180F));
-        BLECharacteristic* pBatteryLevelCharacteristic = pBatteryService->createCharacteristic(
-            BLEUUID((uint16_t)0x2A19),
-            BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
-        );
-        pBatteryLevelCharacteristic->addDescriptor(new BLE2902());
-        uint8_t batteryLevel = 100;  // USB alimenté = 100%
-        pBatteryLevelCharacteristic->setValue(&batteryLevel, 1);
-        pBatteryService->start();
-        
-        // Service Serial Bluetooth
-        BLEService* pSerialService = pServer->createService(BLEUUID(SERVICE_UUID_SERIAL));
-        pSerialCharacteristic = pSerialService->createCharacteristic(
-            BLEUUID(CHAR_UUID_SERIAL),
-            BLECharacteristic::PROPERTY_READ |
-            BLECharacteristic::PROPERTY_WRITE |
-            BLECharacteristic::PROPERTY_NOTIFY |
-            BLECharacteristic::PROPERTY_WRITE_NR
-        );
+        BLEService* pDevInfo = pServer->createService(BLEUUID((uint16_t)0x180A));
+        BLECharacteristic* pMfr = pDevInfo->createCharacteristic(BLEUUID((uint16_t)0x2A29), BLECharacteristic::PROPERTY_READ);
+        pMfr->setValue("Macropad");
+        BLECharacteristic* pModel = pDevInfo->createCharacteristic(BLEUUID((uint16_t)0x2A24), BLECharacteristic::PROPERTY_READ);
+        pModel->setValue("Keyboard");
+        pDevInfo->start();
+        BLEService* pBat = pServer->createService(BLEUUID((uint16_t)0x180F));
+        BLECharacteristic* pBatLev = pBat->createCharacteristic(BLEUUID((uint16_t)0x2A19), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+        pBatLev->addDescriptor(new BLE2902());
+        uint8_t bat = 100;
+        pBatLev->setValue(&bat, 1);
+        pBat->start();
+        BLEService* pSerialSvc = pServer->createService(BLEUUID(SERVICE_UUID_SERIAL));
+        pSerialCharacteristic = pSerialSvc->createCharacteristic(BLEUUID(CHAR_UUID_SERIAL), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_WRITE_NR);
         pSerialCharacteristic->addDescriptor(new BLE2902());
         pSerialCharacteristic->setCallbacks(new SerialCharacteristicCallbacks());
-        pSerialService->start();
-        
-        // Démarrer l'advertising
+        pSerialSvc->start();
         BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
-        pAdvertising->addServiceUUID(BLEUUID((uint16_t)0x1812));  // HID
-        pAdvertising->addServiceUUID(BLEUUID((uint16_t)0x180A));  // Device Information
-        pAdvertising->addServiceUUID(BLEUUID((uint16_t)0x180F));  // Battery (Windows)
+        pAdvertising->addServiceUUID(BLEUUID((uint16_t)0x1812));
+        pAdvertising->addServiceUUID(BLEUUID((uint16_t)0x180A));
+        pAdvertising->addServiceUUID(BLEUUID((uint16_t)0x180F));
         pAdvertising->addServiceUUID(BLEUUID(SERVICE_UUID_SERIAL));
         pAdvertising->setScanResponse(true);
         pAdvertising->setMinPreferred(0x06);
-        pAdvertising->setMinPreferred(0x12);
+        pAdvertising->setMaxPreferred(0x12);
         BLEDevice::startAdvertising();
-        
         BLE_AVAILABLE = true;
-        Serial.println("[BLE] BLE services started");
+        Serial.println("[BLE] BLE HID started (Android/Windows)");
     } catch (...) {
         BLE_AVAILABLE = false;
         Serial.println("[BLE] Error initializing BLE");
@@ -417,8 +327,17 @@ void setup() {
     led_brightness = max(0, min(255, led_brightness));
     Serial.printf("[SYSTEM] Platform: %s (Keypad HID - layout indépendant)\n", platformDetected.c_str());
     
-    // Keymap par défaut au démarrage
+    // Keymap: charger la sauvegarde ou appliquer les valeurs par défaut
     apply_keymap_defaults();
+    for (int r = 0; r < NUM_ROWS; r++) {
+        for (int c = 0; c < NUM_COLS; c++) {
+            String keyName = "k_" + String(r) + "_" + String(c);
+            if (preferences.isKey(keyName.c_str())) {
+                KEYMAP[r][c] = preferences.getString(keyName.c_str(), "");
+            }
+        }
+    }
+    Serial.println("[CONFIG] Keymap loaded from preferences");
     
     // Initialiser UART ATmega
     SerialAtmega.begin(ATMEGA_UART_BAUD, SERIAL_8N1, ATMEGA_UART_RX, ATMEGA_UART_TX);
@@ -485,9 +404,7 @@ void loop() {
             bleSwitchComboStart = 0;
             bleSwitchLastTrigger = now;
             if (BLE_AVAILABLE && pServer && pServer->getConnectedCount() > 0) {
-                uint16_t connId = pServer->getConnId();
-                pServer->disconnect(connId);
-                Serial.println("[BLE] Switch appareil — déconnecté, prêt pour un autre appareil");
+                Serial.println("[BLE] Pour changer d'appareil, deconnectez depuis le telephone/PC");
                 send_last_key_to_atmega();
             }
         }
@@ -503,14 +420,32 @@ void loop() {
     
     // Gérer BLE
     if (!deviceConnected && oldDeviceConnected) {
+        send_display_data_to_atmega();
         delay(500);
-        pServer->startAdvertising();
+        BLEDevice::getAdvertising()->start();
         Serial.println("[BLE] Restarting advertising after disconnect");
         oldDeviceConnected = deviceConnected;
     }
     if (deviceConnected && !oldDeviceConnected) {
         Serial.println("[BLE] New connection established");
+        delay(200);
+        send_display_data_to_atmega();
+        if (pInputCharacteristic != nullptr) {
+            uint8_t empty_report[9] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            pInputCharacteristic->setValue(empty_report, 9);
+            pInputCharacteristic->notify();
+            Serial.println("[BLE] HID activated");
+        }
         oldDeviceConnected = deviceConnected;
+    }
+    
+    int newlinePos;
+    while ((newlinePos = bleSerialBuffer.indexOf('\n')) >= 0) {
+        String completeMessage = bleSerialBuffer.substring(0, newlinePos);
+        bleSerialBuffer = bleSerialBuffer.substring(newlinePos + 1);
+        if (completeMessage.length() > 0) {
+            processWebMessage(completeMessage);
+        }
     }
     
     // Luminosité ambiante: USB 30s, BLE 60s (pour LED + écran)
@@ -633,13 +568,27 @@ void handle_config_message(JsonObject& data) {
                     } else {
                         value = kv.value().as<String>();
                     }
+                    // Alias Web UI -> firmware (média)
+                    if (value == "VOLUME_UP") value = "VOL_UP";
+                    else if (value == "VOLUME_DOWN") value = "VOL_DOWN";
+                    else if (value == "PLAY_PAUSE") value = "Select";
+                    else if (value == "MEDIA_NEXT") value = "Next";
+                    else if (value == "MEDIA_PREV") value = "Prev";
                     KEYMAP[row][col] = value;
                 }
             }
         }
     }
     
-    Serial.println("[WEB] Keymap updated");
+    // Persister la keymap en NVS pour survivre au redémarrage
+    for (int r = 0; r < NUM_ROWS; r++) {
+        for (int c = 0; c < NUM_COLS; c++) {
+            String keyName = "k_" + String(r) + "_" + String(c);
+            preferences.putString(keyName.c_str(), KEYMAP[r][c]);
+        }
+    }
+    
+    Serial.println("[WEB] Keymap updated and saved");
     send_display_data_to_atmega();
     send_status_message("Configuration updated");
 }

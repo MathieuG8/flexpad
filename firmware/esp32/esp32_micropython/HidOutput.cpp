@@ -171,20 +171,12 @@ void HidOutput::_sendKeypadReport(uint8_t kc, uint8_t modifier) {
     uint8_t release[9] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     if (_bleConnected && _pInput != nullptr) {
-        _pInput->setValue(release, 9);
-        delay(5);
-        _pInput->notify();
-        delay(5);
         uint8_t report[9] = {0x01, modifier, 0x00, kc, 0x00, 0x00, 0x00, 0x00, 0x00};
         _pInput->setValue(report, 9);
-        delay(8);
         _pInput->notify();
-        delay(5);
-        for (int i = 0; i < 3; i++) {
-            _pInput->setValue(release, 9);
-            _pInput->notify();
-            delay(5);
-        }
+        delay(2);
+        _pInput->setValue(release, 9);
+        _pInput->notify();
     } else if (_keyboard != nullptr) {
         // USB: 0x81 = Left Shift modifier, 0x88+kc = raw key
         if (modifier & HID_MOD_SHIFT) {
@@ -218,12 +210,10 @@ void HidOutput::_sendConsumerReport(uint16_t code) {
         }
         uint8_t report[3] = {0x02, (uint8_t)(code & 0xFF), (uint8_t)(code >> 8)};
         _pInput->setValue(report, 3);
-        delay(5);
         _pInput->notify();
-        delay(50);
+        delay(2);
         uint8_t release[3] = {0x02, 0x00, 0x00};
         _pInput->setValue(release, 3);
-        delay(5);
         _pInput->notify();
     } else if (_consumer != nullptr) {
         _consumer->press(code);

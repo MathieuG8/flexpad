@@ -47,8 +47,8 @@ firmware/
 
 3. **Configurer la carte** :
    - **Outils > Type de carte** : "ESP32S3 Dev Module"
-   - **Outils > Port** : Sélectionnez le port COM de votre ESP32
-   - **Outils > USB CDC On Boot** : "Enabled" (ou "Disabled" pour Android - voir section Android)
+   - **Outils > Port** : Sélectionnez le port COM (généralement le port **UART/PROG** pour flasher)
+   - **Outils > USB CDC On Boot** : "Enabled" pour Serial + HID sur le port USB natif ; "Disabled" si vous voulez le clavier seul sur le port USB et l’IDE sur UART (voir [USB_CONNECTION.md](esp32/USB_CONNECTION.md))
    - **Outils > USB Mode** : "Hardware CDC and JTAG"
    - **Outils > CPU Frequency** : "240MHz (WiFi/BT)"
    - **Outils > Flash Size** : "4MB (32Mb)"
@@ -517,6 +517,15 @@ Lors du démarrage, l'ESP32 :
 3. **Testez avec un autre appareil** :
    - Testez sur un ordinateur Windows/macOS pour vérifier que le macropad fonctionne
    - Si ça fonctionne sur PC mais pas Android, c'est un problème Android spécifique
+
+### Le numpad n’est pas visible en USB / pas disponible quand l’IDE est ouverte
+
+Sur les cartes ESP32-S3 avec **deux ports USB** (USB natif et UART/PROG) :
+
+- Le **clavier HID** n’apparaît que si vous branchez le câble sur le port **« USB » (natif)**. Le port **« UART » ou « PROG »** sert à la programmation et au moniteur série uniquement (pas de HID).
+- Pour utiliser le clavier **tout en gardant l’Arduino IDE ouverte** : utilisez **deux câbles** (un sur UART pour l’IDE, un sur USB pour le clavier) ou réglez **USB CDC On Boot = Disabled** et branchez le clavier sur le port USB natif.
+
+Détails et schéma : **[firmware/esp32/USB_CONNECTION.md](esp32/USB_CONNECTION.md)**.
 
 ### Erreur Code 43 sur Windows
 

@@ -77,7 +77,6 @@ let backlightDebounceTimer = null;
 let statusUpdatesPausedUntil = 0;
 let lastBleWriteTime = 0;
 const BLE_MIN_WRITE_INTERVAL_MS = 800; // Éviter "GATT operation already in progress" / NotSupportedError
-let bleReadBuffer = ''; // Accumuler les notifications BLE (messages fragmentés) et découper par \n
 
 function pauseStatusUpdatesUntil(timestamp) {
     statusUpdatesPausedUntil = Math.max(statusUpdatesPausedUntil, timestamp);
@@ -630,7 +629,7 @@ function resetAllKeys() {
         saveConfig();
         initializeGrid();
         
-        if (config.connected) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
             sendConfigToESP32();
         }
     }
@@ -726,17 +725,11 @@ async function connectToESP32() {
                         const value = event.target.value;
                         const decoder = new TextDecoder();
                         const text = decoder.decode(value);
-                        bleReadBuffer += text;
-                        const lines = bleReadBuffer.split(/\r?\n/);
-                        bleReadBuffer = lines.pop() || '';
-                        for (const line of lines) {
-                            if (line.trim().length === 0) continue;
-                            try {
-                                const data = JSON.parse(line);
-                                handleESP32Message(data);
-                            } catch (e) {
-                                console.log('[BLE] Données reçues:', line);
-                            }
+                        try {
+                            const data = JSON.parse(text);
+                            handleESP32Message(data);
+                        } catch (e) {
+                            console.log('Données Bluetooth reçues:', text);
                         }
                     });
                     
@@ -751,7 +744,6 @@ async function connectToESP32() {
                         config.bluetoothDevice = null;
                         config.bluetoothServer = null;
                         config.bluetoothCharacteristic = null;
-                        bleReadBuffer = '';
                         bleWritePromise = Promise.resolve();
                         if (statusUpdateInterval) clearInterval(statusUpdateInterval);
                         statusUpdateInterval = null;
@@ -864,10 +856,10 @@ async function connectToESP32() {
             await new Promise(r => setTimeout(r, 800));
         }
         
-        // Demander la config au périphérique (keymap sauvegardée en NVS) — la réponse met à jour l'UI via handleESP32Message('config')
-        await sendDataToESP32(JSON.stringify({ type: 'get_config' }));
+        // Envoyer la config des touches + platform + layout en un seul message
+        await sendConfigToESP32();
         
-        // Envoyer la config backlight (env_brightness, etc.) pour que la LED suive la luminosité
+        // Envoyer aussi la config backlight (env_brightness, etc.) pour que la LED suive la luminosité
         await sendBacklightConfig();
         
         // BLE: ne pas envoyer get_light — l'ESP32 pousse déjà la luminosité toutes les 5 s
@@ -1072,32 +1064,6 @@ function handleESP32Message(data) {
                 setTimeout(() => keyButton.classList.remove('key-pressed'), 150);
             }
             break;
-        case 'config': {
-            // Configuration clavier reçue du périphérique (après get_config) — synchroniser l'UI
-            if (data.keys && typeof data.keys === 'object') {
-                ensureProfiles();
-                const profile = config.profiles['Profil 1'] || config.profiles[config.activeProfile];
-                if (profile) {
-                    profile.keys = {};
-                    for (const [keyId, val] of Object.entries(data.keys)) {
-                        const v = (val && typeof val === 'object' && val.value !== undefined) ? val.value : val;
-                        if (v !== undefined && v !== '') profile.keys[keyId] = { type: 'key', value: String(v) };
-                    }
-                }
-                if (data.rows !== undefined) config.rows = data.rows;
-                if (data.cols !== undefined) config.cols = data.cols;
-                if (data.activeProfile) config.activeProfile = data.activeProfile;
-                if (data.outputMode) config.outputMode = data.outputMode;
-                if (data.platform) { if (!config.settings) config.settings = {}; config.settings.platform = data.platform; }
-                if (data.bleDeviceName && config.settings) config.settings.bleDeviceName = data.bleDeviceName;
-                saveConfig();
-                initializeGrid();
-                updateDisplayInfo();
-                populateProfileSelect();
-                console.log('[DEBUG] [WEB_UI] Config from device applied to UI');
-            }
-            break;
-        }
         case 'status':
             console.log('[DEBUG] [WEB_UI] Status ESP32:', data.message);
             break;
