@@ -1040,6 +1040,7 @@ async function sendConfigToESP32() {
         rows: config.rows,
         cols: config.cols,
         keys: keys,
+        profiles: Object.keys(config.profiles || {}).filter(n => n !== 'Configuration'),
         activeProfile: config.activeProfile,
         outputMode: config.outputMode,
         platform: detectPlatform()

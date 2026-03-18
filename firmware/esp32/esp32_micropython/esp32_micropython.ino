@@ -86,6 +86,72 @@ const char* DEFAULT_KEYMAP[NUM_ROWS][NUM_COLS] = {
 
 String KEYMAP[NUM_ROWS][NUM_COLS];
 
+// Profils (côté firmware) — 3 profils cyclables via touche PROFILE (0,0)
+static const uint8_t PROFILE_COUNT_DEFAULT = 3;
+uint8_t profileCount = PROFILE_COUNT_DEFAULT;
+uint8_t activeProfileIndex = 0;  // 0 = Profil 1
+
+// Forward declarations nécessaires pour les helpers de profils
+void apply_keymap_defaults();
+void send_display_data_to_atmega();
+void send_config_to_web();
+void send_status_message(String message);
+
+static String profileName(uint8_t idx) {
+    return "Profil " + String((int)idx + 1);
+}
+
+static String getStoredProfileName(uint8_t idx) {
+    String k = "profile_name_" + String((int)idx);
+    String name = preferences.getString(k.c_str(), "");
+    if (name.length() == 0) return profileName(idx);
+    return name;
+}
+
+static void storeProfileName(uint8_t idx, const String& name) {
+    String k = "profile_name_" + String((int)idx);
+    preferences.putString(k.c_str(), name);
+}
+
+static void loadProfileKeymap(uint8_t idx) {
+    // Charger la keymap du profil depuis NVS (Preferences). Si une clé manque: laisser la valeur courante.
+    for (int r = 0; r < NUM_ROWS; r++) {
+        for (int c = 0; c < NUM_COLS; c++) {
+            // 0-0 est réservé à PROFILE (switch profil) — ne jamais le surcharger depuis NVS
+            if (r == 0 && c == 0) continue;
+            String keyName = "p" + String((int)idx) + "_k_" + String(r) + "_" + String(c);
+            if (preferences.isKey(keyName.c_str())) {
+                KEYMAP[r][c] = preferences.getString(keyName.c_str(), "");
+            }
+        }
+    }
+}
+
+static void saveProfileKeymap(uint8_t idx) {
+    for (int r = 0; r < NUM_ROWS; r++) {
+        for (int c = 0; c < NUM_COLS; c++) {
+            // 0-0 est réservé à PROFILE (switch profil) — ne pas persister
+            if (r == 0 && c == 0) continue;
+            String keyName = "p" + String((int)idx) + "_k_" + String(r) + "_" + String(c);
+            preferences.putString(keyName.c_str(), KEYMAP[r][c]);
+        }
+    }
+}
+
+static void setActiveProfile(uint8_t idx) {
+    if (profileCount == 0) profileCount = PROFILE_COUNT_DEFAULT;
+    activeProfileIndex = idx % profileCount;
+    preferences.putUChar("profile_count", profileCount);
+    preferences.putUChar("active_profile", activeProfileIndex);
+}
+
+static void switchToNextProfile() {
+    uint8_t next = (activeProfileIndex + 1) % (profileCount ? profileCount : PROFILE_COUNT_DEFAULT);
+    setActiveProfile(next);
+    apply_keymap_defaults();       // base stable (PROFILE reste en 0,0)
+    loadProfileKeymap(activeProfileIndex);
+}
+
 // UART ATmega
     String atmega_rx_buffer = "";
 unsigned long null_bytes_count = 0;
@@ -154,6 +220,16 @@ void onKeyPress(uint8_t row, uint8_t col, bool pressed, bool isRepeat) {
     // Ne pas envoyer si combo PROFILE+1 en cours (switch BLE)
     if (keyMatrix.isKeyPressed(0, 0) && keyMatrix.isKeyPressed(3, 0)) return;
 #endif
+
+    // PROFILE: changer de profil côté firmware (ne pas envoyer au host)
+    if (symbol == "PROFILE") {
+        Serial.println("[PROFILE] Switch profile");
+        switchToNextProfile();
+        send_display_data_to_atmega();
+        send_config_to_web();
+    send_status_message("Profil actif: " + getStoredProfileName(activeProfileIndex));
+        return;
+    }
 
     Serial.printf("[HID] Key [%d,%d] PRESSED: %s\n", row, col, symbol.c_str());
     last_key_pressed = symbol;
@@ -320,6 +396,9 @@ void setup() {
     
     preferences.begin("macropad", false);
     platformDetected = preferences.getString("platform", "unknown");
+    profileCount = preferences.getUChar("profile_count", PROFILE_COUNT_DEFAULT);
+    if (profileCount == 0 || profileCount > 10) profileCount = PROFILE_COUNT_DEFAULT;
+    activeProfileIndex = preferences.getUChar("active_profile", 0) % profileCount;
     // Charger config backlight persistée (env_brightness = LED selon luminosité)
     env_brightness_enabled = preferences.getBool("env_brightness", true);  // true = LED built-in suit la luminosité par défaut
     backlight_enabled = preferences.getBool("backlight_en", true);
@@ -327,17 +406,10 @@ void setup() {
     led_brightness = max(0, min(255, led_brightness));
     Serial.printf("[SYSTEM] Platform: %s (Keypad HID - layout indépendant)\n", platformDetected.c_str());
     
-    // Keymap: charger la sauvegarde ou appliquer les valeurs par défaut
+    // Keymap: defaults puis charger le profil actif
     apply_keymap_defaults();
-    for (int r = 0; r < NUM_ROWS; r++) {
-        for (int c = 0; c < NUM_COLS; c++) {
-            String keyName = "k_" + String(r) + "_" + String(c);
-            if (preferences.isKey(keyName.c_str())) {
-                KEYMAP[r][c] = preferences.getString(keyName.c_str(), "");
-            }
-        }
-    }
-    Serial.println("[CONFIG] Keymap loaded from preferences");
+    loadProfileKeymap(activeProfileIndex);
+    Serial.printf("[CONFIG] Keymap loaded for %s\n", profileName(activeProfileIndex).c_str());
     
     // Initialiser UART ATmega
     SerialAtmega.begin(ATMEGA_UART_BAUD, SERIAL_8N1, ATMEGA_UART_RX, ATMEGA_UART_TX);
@@ -540,11 +612,56 @@ void processWebMessage(String message) {
 void handle_config_message(JsonObject& data) {
     Serial.println("[WEB] Processing config message");
     
+    // Synchroniser la liste de profils depuis la Web UI (si fournie)
+    if (data.containsKey("profiles") && data["profiles"].is<JsonArray>()) {
+        JsonArray arr = data["profiles"].as<JsonArray>();
+        uint8_t n = (uint8_t)min((size_t)arr.size(), (size_t)10);
+        if (n >= 1) {
+            profileCount = n;
+            preferences.putUChar("profile_count", profileCount);
+            for (uint8_t i = 0; i < n; i++) {
+                String name = arr[i].as<String>();
+                if (name.length() == 0) name = profileName(i);
+                // Limite pour affichage écran
+                if (name.length() > 15) name = name.substring(0, 15);
+                storeProfileName(i, name);
+            }
+        }
+    }
+
+    // Profil actif (si fourni)
+    if (data.containsKey("activeProfile")) {
+        String ap = data["activeProfile"].as<String>();
+        // Matching par nom (liste envoyée par UI)
+        bool matched = false;
+        for (uint8_t i = 0; i < profileCount; i++) {
+            if (getStoredProfileName(i) == ap) {
+                activeProfileIndex = i;
+                matched = true;
+                break;
+            }
+        }
+        // Fallback: "Profil N"
+        if (!matched && ap.startsWith("Profil ")) {
+            int n = ap.substring(6).toInt(); // "Profil 2" -> 2
+            if (n >= 1 && n <= 10) {
+                activeProfileIndex = (uint8_t)(n - 1);
+                if (activeProfileIndex >= profileCount) {
+                    profileCount = activeProfileIndex + 1;
+                    preferences.putUChar("profile_count", profileCount);
+                }
+            }
+        }
+        setActiveProfile(activeProfileIndex);
+    }
+
     for (int r = 0; r < NUM_ROWS; r++) {
         for (int c = 0; c < NUM_COLS; c++) {
             KEYMAP[r][c] = "";
         }
     }
+    // 0-0 est réservé à PROFILE (le Web UI n'envoie volontairement jamais 0-0)
+    KEYMAP[0][0] = "PROFILE";
     
     if (data.containsKey("platform")) {
         platformDetected = data["platform"].as<String>();
@@ -579,14 +696,11 @@ void handle_config_message(JsonObject& data) {
             }
         }
     }
+    // Sécurité: garantir que PROFILE reste assigné à 0-0
+    KEYMAP[0][0] = "PROFILE";
     
-    // Persister la keymap en NVS pour survivre au redémarrage
-    for (int r = 0; r < NUM_ROWS; r++) {
-        for (int c = 0; c < NUM_COLS; c++) {
-            String keyName = "k_" + String(r) + "_" + String(c);
-            preferences.putString(keyName.c_str(), KEYMAP[r][c]);
-        }
-    }
+    // Persister la keymap du profil actif en NVS pour survivre au redémarrage
+    saveProfileKeymap(activeProfileIndex);
     
     Serial.println("[WEB] Keymap updated and saved");
     send_display_data_to_atmega();
@@ -662,7 +776,7 @@ void send_config_to_web() {
     doc["type"] = "config";
     doc["rows"] = NUM_ROWS;
     doc["cols"] = NUM_COLS;
-    doc["activeProfile"] = "Profil 1";
+    doc["activeProfile"] = getStoredProfileName(activeProfileIndex);
     doc["outputMode"] = deviceConnected ? "bluetooth" : "usb";
     doc["platform"] = platformDetected;
     doc["bleDeviceName"] = preferences.getString("ble_device_name", "");
@@ -680,8 +794,15 @@ void send_config_to_web() {
     }
     
     JsonObject profiles = doc.createNestedObject("profiles");
-    JsonObject profile1 = profiles.createNestedObject("Profil 1");
-    profile1["keys"] = keys;
+    // Pour rester léger, on expose la liste des profils, mais on ne remplit que le profil actif.
+    for (uint8_t i = 0; i < profileCount; i++) {
+        JsonObject p = profiles.createNestedObject(getStoredProfileName(i));
+        if (i == activeProfileIndex) {
+            p["keys"] = keys;
+        } else {
+            p.createNestedObject("keys");
+        }
+    }
     
     String output;
     serializeJson(doc, output);
@@ -1139,10 +1260,10 @@ void send_display_data_to_atmega() {
     payload[pos++] = mode_len;
     memcpy(&payload[pos], mode, mode_len);
     pos += mode_len;
-    const char* profile = "Profil 1";
-    uint8_t profile_len = strlen(profile);
+    String prof = getStoredProfileName(activeProfileIndex);
+    uint8_t profile_len = (uint8_t)min((int)prof.length(), 15);
     payload[pos++] = profile_len;
-    memcpy(&payload[pos], profile, profile_len);
+    memcpy(&payload[pos], prof.c_str(), profile_len);
     pos += profile_len;
     const char* output = deviceConnected ? "bluetooth" : "usb";
     uint8_t output_len = strlen(output);
