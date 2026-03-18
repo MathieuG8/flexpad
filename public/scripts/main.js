@@ -688,28 +688,27 @@ async function connectToESP32() {
                 if ('bluetooth' in navigator) {
                     const serialUuid = '0000ffe0-0000-1000-8000-00805f9b34fb';
                     const namePrefix = (config.settings?.bleDeviceName || config.bleDeviceName || 'Macropad').trim() || 'Macropad';
-                    let device;
-                    try {
+                    let device = config.bluetoothDevice || null;
+
+                    // Si on a déjà un device autorisé, tenter une reconnexion GATT sans redemander
+                    if (device && device.gatt) {
+                        try {
+                            if (!device.gatt.connected) {
+                                console.log('[BLE] Reconnexion à l\'appareil déjà appairé…');
+                                await device.gatt.connect();
+                            }
+                        } catch (reconnectErr) {
+                            console.warn('[BLE] Reconnexion échouée, nouvelle sélection d\'appareil:', reconnectErr);
+                            device = null;
+                        }
+                    }
+
+                    // Aucun device connu ou reconnexion impossible → une seule demande requestDevice
+                    if (!device) {
                         device = await navigator.bluetooth.requestDevice({
                             filters: [{ namePrefix }],
                             optionalServices: [serialUuid]
                         });
-                    } catch (filterErr) {
-                        if (filterErr.name === 'NotFoundError') {
-                            try {
-                                device = await navigator.bluetooth.requestDevice({
-                                    filters: [{ namePrefix: 'Macropad' }],
-                                    optionalServices: [serialUuid]
-                                });
-                            } catch (fallbackErr) {
-                                device = await navigator.bluetooth.requestDevice({
-                                    acceptAllDevices: true,
-                                    optionalServices: [serialUuid]
-                                });
-                            }
-                        } else {
-                            throw filterErr;
-                        }
                     }
                     
                     const server = await device.gatt.connect();
