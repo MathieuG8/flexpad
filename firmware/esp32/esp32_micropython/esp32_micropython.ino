@@ -163,6 +163,7 @@ int led_pwm_channel = 0;
 int led_brightness = 128;
 bool backlight_enabled = true;
 bool env_brightness_enabled = false;  // Toggle "Selon l'environnement" du web
+uint8_t encoderStep = 1; // Multiplicateur de pas pour l'encodeur (1..10)
 
 // BLE (Bluedroid — Android, Windows, compatible)
 BLEServer* pServer = nullptr;
@@ -246,11 +247,13 @@ void onKeyPress(uint8_t row, uint8_t col, bool pressed, bool isRepeat) {
 }
 
 void onEncoderRotate(int8_t dir, uint8_t steps) {
-    for (uint8_t i = 0; i < steps; i++) {
+    uint16_t total = (uint16_t)steps * (uint16_t)max((uint8_t)1, min((uint8_t)10, encoderStep));
+    if (total == 0) total = 1;
+    for (uint16_t i = 0; i < total; i++) {
         if (dir > 0) hidOutput.sendVolumeUp();
         else hidOutput.sendVolumeDown();
         // Android BLE: espacement requis entre rapports Consumer (sinon "volume max ou rien")
-        if (deviceConnected && i < steps - 1) delay(BLE_VOLUME_STEP_DELAY_MS);
+        if (deviceConnected && i < total - 1) delay(BLE_VOLUME_STEP_DELAY_MS);
     }
 }
 
@@ -404,6 +407,8 @@ void setup() {
     backlight_enabled = preferences.getBool("backlight_en", true);
     led_brightness = preferences.getUChar("led_brightness", 128);
     led_brightness = max(0, min(255, led_brightness));
+    encoderStep = preferences.getUChar("enc_step", 1);
+    if (encoderStep < 1 || encoderStep > 10) encoderStep = 1;
     Serial.printf("[SYSTEM] Platform: %s (Keypad HID - layout indépendant)\n", platformDetected.c_str());
     
     // Keymap: defaults puis charger le profil actif
@@ -588,6 +593,14 @@ void processWebMessage(String message) {
             String name = settingsObj["bleDeviceName"].as<String>();
             preferences.putString("ble_device_name", name);
             Serial.printf("[CONFIG] BLE device name set: %s\n", name.c_str());
+        }
+        if (settingsObj.containsKey("encoderStep")) {
+            int v = settingsObj["encoderStep"].as<int>();
+            if (v < 1) v = 1;
+            if (v > 10) v = 10;
+            encoderStep = (uint8_t)v;
+            preferences.putUChar("enc_step", encoderStep);
+            Serial.printf("[CONFIG] Encoder step set: %d\n", (int)encoderStep);
         }
     } else if (msg_type == "set_device_name") {
         if (doc.containsKey("name")) {

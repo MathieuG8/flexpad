@@ -123,6 +123,15 @@
     <span class="config-preview-label">Aperçu:</span>
     <span id="config-preview" class="config-preview">Sélectionnez une touche</span>
   </div>
+  <div class="form-group">
+    <label for="encoder-step">Pas de l'encodeur (steps par cran):</label>
+    <div class="slider-row">
+      <input type="range" id="encoder-step" class="slider" min="1" max="10" value="1" step="1">
+      <span id="encoder-step-value" class="slider-value">1</span>
+    </div>
+    <p class="form-hint">Augmentez pour monter/descendre le volume plus vite (1 = normal).</p>
+    <div class="form-hint">Astuce: si vous êtes connecté, l'ajustement s'applique tout de suite.</div>
+  </div>
   <div class="button-group">
     <button id="save-btn" class="btn btn-success">
       <i data-lucide="save" class="btn-icon"></i>

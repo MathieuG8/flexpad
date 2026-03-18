@@ -24,6 +24,7 @@ let config = {
         githubFirmwareRepo: '',
         webLoggingEnabled: true,
         theme: 'dark',
+        encoderStep: 1,
         serialAutoScroll: true,
         serialMaxLines: 500,
         debug: {
@@ -497,6 +498,26 @@ function setupEventListeners() {
                     if (modAlt) modAlt.checked = false;
                     if (modGui) modGui.checked = false;
                 }
+            }
+        });
+    }
+
+    // Pas de l'encodeur (steps par cran) — appliqué immédiatement si connecté
+    const encStep = document.getElementById('encoder-step');
+    const encStepVal = document.getElementById('encoder-step-value');
+    if (encStep) {
+        const cur = Math.max(1, Math.min(10, parseInt(config.settings?.encoderStep ?? 1, 10) || 1));
+        encStep.value = String(cur);
+        if (encStepVal) encStepVal.textContent = String(cur);
+        encStep.addEventListener('input', async (e) => {
+            const v = Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 1));
+            if (!config.settings) config.settings = {};
+            config.settings.encoderStep = v;
+            if (encStepVal) encStepVal.textContent = String(v);
+            saveConfig();
+            // Appliquer tout de suite au firmware si connecté
+            if (config.connected) {
+                try { await sendSettingsToESP32(); } catch (_) {}
             }
         });
     }
@@ -1240,6 +1261,7 @@ function loadConfig() {
             githubFirmwareRepo: savedConfig.settings.githubFirmwareRepo ?? config.settings?.githubFirmwareRepo ?? '',
             webLoggingEnabled: savedConfig.settings.webLoggingEnabled ?? config.settings?.webLoggingEnabled ?? true,
             theme: savedConfig.settings.theme ?? config.settings?.theme ?? 'dark',
+            encoderStep: parseInt(savedConfig.settings.encoderStep ?? config.settings?.encoderStep ?? 1, 10) || 1,
             serialAutoScroll: savedConfig.settings.serialAutoScroll ?? true,
             serialMaxLines: savedConfig.settings.serialMaxLines ?? 500,
             debug: {
@@ -1783,6 +1805,9 @@ function setupSettingsControls() {
             saveConfig();
         });
     }
+
+    // Pas de l'encodeur (steps par cran) — UI sur la page principale
+    // (l'élément est initialisé dans setupEventListeners pour être disponible même si l'onglet settings n'est jamais ouvert)
 
     // Auto-reconnexion
     const autoReconnect = document.getElementById('auto-reconnect-enabled');
@@ -2365,6 +2390,7 @@ async function sendSettingsToESP32() {
         type: 'settings',
         platform: detectPlatform(),
         bleDeviceName: config.settings?.bleDeviceName || '',
+        encoderStep: Math.max(1, Math.min(10, parseInt(config.settings?.encoderStep ?? 1, 10) || 1)),
         debug: {
             esp32Enabled: config.settings?.debug?.esp32Enabled || false,
             esp32LogLevel: config.settings?.debug?.esp32LogLevel || 'info',
