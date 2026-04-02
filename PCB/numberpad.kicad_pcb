@@ -1518,18 +1518,18 @@
 		(embedded_fonts no)
 		(model "${KICAD9_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x04_P2.54mm_Vertical.step"
 			(offset
-				(xyz 0 0 0)
+				(xyz 0 0 -4.3)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz 0 0 0)
+				(xyz -0 -0 -0)
 			)
 		)
 		(model "C:/Users/Mathieu/OneDrive/Documents/KiCad/9.0/3dmodels/USB-C 3.1 Connector Breakout Board v5.step"
 			(offset
-				(xyz -12 -3.9 3)
+				(xyz -12 -3.9 0)
 			)
 			(scale
 				(xyz 1 1 1)
@@ -2665,7 +2665,7 @@
 			(uuid "4be1251f-10af-4594-8c53-458b594ecc35")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/Capacitor_THT.3dshapes/C_Rect_L4.6mm_W2.0mm_P2.50mm_MKS02_FKP02.step"
+		(model "${KICAD9_3DMODEL_DIR}/Capacitor_THT.3dshapes/C_Disc_D3.0mm_W1.6mm_P2.50mm.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -8095,7 +8095,7 @@
 			(uuid "0b95619a-2827-46b0-85a2-df8f51c21766")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/Capacitor_THT.3dshapes/C_Rect_L4.6mm_W2.0mm_P2.50mm_MKS02_FKP02.step"
+		(model "${KICAD9_3DMODEL_DIR}/Capacitor_THT.3dshapes/C_Disc_D3.0mm_W1.6mm_P2.50mm.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -10295,10 +10295,10 @@
 		)
 		(model "C:/Users/Mathieu/OneDrive/Documents/KiCad/9.0/3dmodels/display320x240.STEP"
 			(offset
-				(xyz 5 -23 8.5)
+				(xyz 5 -24 5.5)
 			)
 			(scale
-				(xyz 0.8 1.3 0.3)
+				(xyz 0.8 1.25 0.9)
 			)
 			(rotate
 				(xyz -0 -0 -90)
@@ -12922,7 +12922,7 @@
 			(uuid "5c636427-9ef6-43a4-b590-60dc22eaced3")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/Crystal.3dshapes/Crystal_HC49-U_Vertical.step"
+		(model "${KICAD9_3DMODEL_DIR}/Crystal.3dshapes/Crystal_HC49-4H_Vertical.step"
 			(offset
 				(xyz 0 0 0)
 			)

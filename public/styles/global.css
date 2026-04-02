@@ -2623,6 +2623,9 @@ textarea:invalid:not(:placeholder-shown):focus {
     grid-template-columns: 1fr 1.5fr;
     gap: 28px;
     margin-bottom: 24px;
+    /* Au-dessus de .backlight-actions (sinon le bouton Appliquer recouvre le popover couleur) */
+    position: relative;
+    z-index: 2;
 }
 
 @media (max-width: 768px) {
@@ -2686,6 +2689,182 @@ textarea:invalid:not(:placeholder-shown):focus {
     font-weight: 600;
     min-width: 42px;
     color: var(--primary-color);
+}
+
+/* Sélecteur de couleur rétroéclairage */
+.backlight-color-group {
+    position: relative;
+    /* Frères suivants (luminosité, env.) sont plus bas dans le DOM → sans z-index ils recouvrent le popover */
+    z-index: 50;
+    isolation: isolate;
+}
+
+.backlight-color-wrap {
+    position: relative;
+}
+
+.backlight-color-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-color);
+    color: var(--text-primary);
+    cursor: pointer;
+    font: inherit;
+    width: 100%;
+    max-width: 320px;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.backlight-color-trigger:hover {
+    border-color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] .backlight-color-trigger:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.backlight-color-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.backlight-color-trigger-label {
+    font-weight: 500;
+}
+
+.backlight-color-popover {
+    position: absolute;
+    z-index: 10000;
+    left: 0;
+    top: calc(100% + 8px);
+    min-width: min(100vw - 32px, 440px);
+    max-width: calc(100vw - 24px);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-elevated, var(--surface-color));
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.backlight-color-popover[hidden] {
+    display: none !important;
+}
+
+.color-popover-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.color-tab-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.color-tab-btn.is-active {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .color-tab-btn.is-active {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.color-tab-panel.is-hidden {
+    display: none !important;
+}
+
+.color-popover-hint {
+    margin: 0 0 10px 0 !important;
+    margin-left: 0 !important;
+}
+
+.color-wheel-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.backlight-hue-wheel,
+.backlight-sv-plane {
+    display: block;
+    border-radius: 10px;
+    cursor: crosshair;
+    touch-action: none;
+    border: 1px solid var(--border-color);
+}
+
+.backlight-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    max-width: 100%;
+}
+
+.backlight-palette-swatch {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    padding: 0;
+    min-height: 32px;
+    transition: transform 0.1s, border-color 0.1s;
+}
+
+.backlight-palette-swatch:hover {
+    transform: scale(1.06);
+    border-color: var(--primary-color);
+}
+
+.color-code-row .color-hex-input {
+    font-family: ui-monospace, monospace;
+    max-width: 140px;
+}
+
+.color-rgb-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.color-rgb-row .form-group {
+    margin-bottom: 0;
+}
+
+.color-popover-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.backlight-color-footer-btn {
+    padding: 8px 16px;
+    font-size: 0.875rem;
 }
 
 /* Light meter - design amélioré */
@@ -2794,6 +2973,8 @@ textarea:invalid:not(:placeholder-shown):focus {
 
 .backlight-actions {
     margin-top: 8px;
+    position: relative;
+    z-index: 1;
 }
 
 /* Legacy light meter (fallback) */

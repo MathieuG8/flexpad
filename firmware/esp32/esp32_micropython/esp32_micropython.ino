@@ -1,20 +1,3 @@
-/*
- * ESP32-S3 Macropad Firmware - Pavé numérique configurable
- * Inspiré de MacroPad (aayushchouhan24) — logique modulaire, HID standalone
- *
- * Fonctionne sur n'importe quel appareil (phone, PC) sans app.
- * Configurable via interface web (Web Serial / Web Bluetooth).
- *
- * USB (cartes avec 2 ports):
- *   - Port "USB" (natif): HID clavier + optionnel CDC (Serial). Brancher ICI pour le numpad.
- *   - Port "UART"/"PROG": programmation + moniteur série uniquement (pas de HID).
- * Si le numpad n'apparaît pas: brancher sur le port USB natif, pas sur UART.
- * Voir firmware/esp32/USB_CONNECTION.md pour clavier + IDE ouverte.
- *
- * Dépendances: Adafruit NeoPixel
- * Arduino: Board = ESP32S3 Dev Module
- */
-
 #include "Config.h"
 #include "KeyMatrix.h"
 #include "Encoder.h"
@@ -33,6 +16,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <Update.h>
 #include <string.h>
+#include <string>
 
 // Base64 decode minimal (évite dépendance mbedtls)
 static int base64_decode(const char* in, size_t inlen, uint8_t* out, size_t outmax, size_t* outlen) {
@@ -163,6 +147,10 @@ int led_pwm_channel = 0;
 int led_brightness = 128;
 bool backlight_enabled = true;
 bool env_brightness_enabled = false;  // Toggle "Selon l'environnement" du web
+// Couleur de base du rétroéclairage RVB (0–255), combinée à led_brightness dans update_builtin_led_from_light
+uint8_t led_color_r = 255;
+uint8_t led_color_g = 180;
+uint8_t led_color_b = 50;
 uint8_t encoderStep = 1; // Multiplicateur de pas pour l'encodeur (1..10)
 
 // BLE (Bluedroid — Android, Windows, compatible)
@@ -299,9 +287,9 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 class SerialCharacteristicCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic* pCharacteristic) override {
-        String value = pCharacteristic->getValue();
-        if (value.length() > 0) {
-            bleSerialBuffer += value;
+        std::string value = pCharacteristic->getValue();
+        if (!value.empty()) {
+            bleSerialBuffer += String(value.c_str());
         }
     }
 };
@@ -407,6 +395,9 @@ void setup() {
     backlight_enabled = preferences.getBool("backlight_en", true);
     led_brightness = preferences.getUChar("led_brightness", 128);
     led_brightness = max(0, min(255, led_brightness));
+    led_color_r = preferences.getUChar("led_cr", 255);
+    led_color_g = preferences.getUChar("led_cg", 180);
+    led_color_b = preferences.getUChar("led_cb", 50);
     encoderStep = preferences.getUChar("enc_step", 1);
     if (encoderStep < 1 || encoderStep > 10) encoderStep = 1;
     Serial.printf("[SYSTEM] Platform: %s (Keypad HID - layout indépendant)\n", platformDetected.c_str());
@@ -723,6 +714,35 @@ void handle_config_message(JsonObject& data) {
 void handle_backlight_message(JsonObject& data) {
     Serial.println("[WEB] Processing backlight message");
     
+    if (data.containsKey("colorR") || data.containsKey("colorG") || data.containsKey("colorB")) {
+        if (data.containsKey("colorR")) {
+            int v = data["colorR"].as<int>();
+            led_color_r = (uint8_t)max(0, min(255, v));
+        }
+        if (data.containsKey("colorG")) {
+            int v = data["colorG"].as<int>();
+            led_color_g = (uint8_t)max(0, min(255, v));
+        }
+        if (data.containsKey("colorB")) {
+            int v = data["colorB"].as<int>();
+            led_color_b = (uint8_t)max(0, min(255, v));
+        }
+        preferences.putUChar("led_cr", led_color_r);
+        preferences.putUChar("led_cg", led_color_g);
+        preferences.putUChar("led_cb", led_color_b);
+        Serial.printf("[LED] Color RGB (%u,%u,%u)\n", (unsigned)led_color_r, (unsigned)led_color_g, (unsigned)led_color_b);
+    }
+    if (data["color"].is<JsonObject>()) {
+        JsonObject c = data["color"];
+        if (c.containsKey("r")) led_color_r = (uint8_t)max(0, min(255, c["r"].as<int>()));
+        if (c.containsKey("g")) led_color_g = (uint8_t)max(0, min(255, c["g"].as<int>()));
+        if (c.containsKey("b")) led_color_b = (uint8_t)max(0, min(255, c["b"].as<int>()));
+        preferences.putUChar("led_cr", led_color_r);
+        preferences.putUChar("led_cg", led_color_g);
+        preferences.putUChar("led_cb", led_color_b);
+        Serial.printf("[LED] Color RGB (%u,%u,%u)\n", (unsigned)led_color_r, (unsigned)led_color_g, (unsigned)led_color_b);
+    }
+    
     if (data.containsKey("enabled")) {
         backlight_enabled = data["enabled"].as<bool>();
         if (!backlight_enabled) {
@@ -739,7 +759,7 @@ void handle_backlight_message(JsonObject& data) {
             ledcWrite(led_pwm_channel, pwm_val * 1023 / 255);
 #endif
 #if ENABLE_LED_STRIP
-            ledStrip.setBrightness(led_brightness);
+            ledStrip.setBrightness(255);
             update_per_key_leds();
 #endif
         }
@@ -749,10 +769,12 @@ void handle_backlight_message(JsonObject& data) {
         led_brightness = data["brightness"].as<uint8_t>();
         led_brightness = max(0, min(255, led_brightness));
         if (backlight_enabled) {
+#if LED_PWM_PIN >= 0
             uint8_t pwm_val = (env_brightness_enabled && last_light_level >= LIGHT_THRESHOLD) ? 0 : led_brightness;
             ledcWrite(led_pwm_channel, pwm_val * 1023 / 255);
+#endif
 #if ENABLE_LED_STRIP
-            ledStrip.setBrightness(led_brightness);
+            ledStrip.setBrightness(255);
             update_per_key_leds();
 #endif
         }
@@ -793,6 +815,14 @@ void send_config_to_web() {
     doc["outputMode"] = deviceConnected ? "bluetooth" : "usb";
     doc["platform"] = platformDetected;
     doc["bleDeviceName"] = preferences.getString("ble_device_name", "");
+    
+    JsonObject bl = doc.createNestedObject("backlight");
+    bl["enabled"] = backlight_enabled;
+    bl["brightness"] = (uint8_t)led_brightness;
+    bl["envBrightness"] = env_brightness_enabled;
+    bl["colorR"] = led_color_r;
+    bl["colorG"] = led_color_g;
+    bl["colorB"] = led_color_b;
     
     JsonObject keys = doc.createNestedObject("keys");
     for (int r = 0; r < NUM_ROWS; r++) {
@@ -870,20 +900,26 @@ void update_builtin_led_from_light() {
         if (!is_dark) {
             tr = tg = tb = 0;
         } else {
-            uint8_t v = backlight_enabled ? led_brightness : 80;
-            if (v < 20) v = 20;
-            tr = v;
-            tg = (v * 180) / 255;
-            tb = (v * 50) / 255;
+            uint8_t v = backlight_enabled ? (uint8_t)led_brightness : 80;
+            if (v > 0 && v < 20) v = 20;
+            uint16_t rr = (uint16_t)led_color_r * v / 255;
+            uint16_t gg = (uint16_t)led_color_g * v / 255;
+            uint16_t bb = (uint16_t)led_color_b * v / 255;
+            tr = (uint8_t)min((int)rr, 255);
+            tg = (uint8_t)min((int)gg, 255);
+            tb = (uint8_t)min((int)bb, 255);
         }
     } else {
         // Toggle désactivé: luminosité manuelle (backlight_enabled + led_brightness)
         if (backlight_enabled) {
-            uint8_t v = led_brightness;
-            if (v < 20) v = 20;
-            tr = v;
-            tg = (v * 180) / 255;
-            tb = (v * 50) / 255;
+            uint8_t v = (uint8_t)led_brightness;
+            if (v > 0 && v < 20) v = 20;
+            uint16_t rr = (uint16_t)led_color_r * v / 255;
+            uint16_t gg = (uint16_t)led_color_g * v / 255;
+            uint16_t bb = (uint16_t)led_color_b * v / 255;
+            tr = (uint8_t)min((int)rr, 255);
+            tg = (uint8_t)min((int)gg, 255);
+            tb = (uint8_t)min((int)bb, 255);
         } else {
             tr = tg = tb = 0;
         }
@@ -914,6 +950,7 @@ void update_builtin_led_from_light() {
         }
     }
     
+    ledStrip.setBrightness(255);
     ledStrip.setPixelColor(0, ledStrip.Color(led_current_r, led_current_g, led_current_b));
     ledStrip.show();
 #endif

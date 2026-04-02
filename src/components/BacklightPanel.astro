@@ -17,6 +17,56 @@
           <span>Activer le rétro-éclairage</span>
         </label>
       </div>
+      <div class="form-group backlight-color-group">
+        <label>Couleur du rétroéclairage (LED)</label>
+        <div class="backlight-color-wrap">
+          <button type="button" id="backlight-color-trigger" class="backlight-color-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="backlight-color-popover">
+            <span id="backlight-color-swatch" class="backlight-color-swatch" style="background:#ffb432"></span>
+            <span class="backlight-color-trigger-label">Choisir une couleur…</span>
+          </button>
+          <div id="backlight-color-popover" class="backlight-color-popover" role="dialog" aria-label="Sélecteur de couleur" hidden>
+            <div class="color-popover-tabs" role="tablist">
+              <button type="button" class="color-tab-btn is-active" data-tab="wheel" role="tab" aria-selected="true">Roue</button>
+              <button type="button" class="color-tab-btn" data-tab="palette" role="tab" aria-selected="false">Palette</button>
+              <button type="button" class="color-tab-btn" data-tab="code" role="tab" aria-selected="false">Hex / RVB</button>
+            </div>
+            <div id="color-tab-wheel" class="color-tab-panel" role="tabpanel">
+              <p class="form-hint color-popover-hint">Cercle = teinte · Carré = saturation et luminosité</p>
+              <div class="color-wheel-row">
+                <canvas id="backlight-hue-wheel" class="backlight-hue-wheel" width="200" height="200" aria-label="Roue des teintes"></canvas>
+                <canvas id="backlight-sv-plane" class="backlight-sv-plane" width="200" height="140" aria-label="Saturation et luminosité"></canvas>
+              </div>
+            </div>
+            <div id="color-tab-palette" class="color-tab-panel is-hidden" role="tabpanel" hidden>
+              <div id="backlight-palette-grid" class="backlight-palette-grid"></div>
+            </div>
+            <div id="color-tab-code" class="color-tab-panel is-hidden" role="tabpanel" hidden>
+              <div class="form-group color-code-row">
+                <label for="backlight-color-hex">Hex</label>
+                <input type="text" id="backlight-color-hex" class="form-control color-hex-input" maxlength="7" placeholder="#RRGGBB" autocomplete="off">
+              </div>
+              <div class="color-rgb-row">
+                <div class="form-group">
+                  <label for="backlight-color-r">R</label>
+                  <input type="number" id="backlight-color-r" class="form-control" min="0" max="255" step="1">
+                </div>
+                <div class="form-group">
+                  <label for="backlight-color-g">G</label>
+                  <input type="number" id="backlight-color-g" class="form-control" min="0" max="255" step="1">
+                </div>
+                <div class="form-group">
+                  <label for="backlight-color-b">B</label>
+                  <input type="number" id="backlight-color-b" class="form-control" min="0" max="255" step="1">
+                </div>
+              </div>
+            </div>
+            <div class="color-popover-footer">
+              <button type="button" id="backlight-color-apply-live" class="btn btn-secondary backlight-color-footer-btn">Aperçu sur l’appareil</button>
+              <button type="button" id="backlight-color-close" class="btn btn-primary backlight-color-footer-btn">OK</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="form-group">
         <label for="backlight-brightness">Luminosité manuelle</label>
         <div class="slider-row">

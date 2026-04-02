@@ -9,7 +9,10 @@ let config = {
         enabled: true,
         brightness: 128,
         autoBrightness: false,
-        envBrightness: false
+        envBrightness: false,
+        colorR: 255,
+        colorG: 180,
+        colorB: 50
     },
     fingerprint: {
         enabled: false,
@@ -75,6 +78,11 @@ const maxReconnectAttempts = 5;
 let statusUpdateInterval = null;
 let bleWritePromise = Promise.resolve(); // File d'attente pour éviter "GATT operation already in progress"
 let backlightDebounceTimer = null;
+let backlightColorPreviewTimer = null;
+let backlightPickerH = 30;
+let backlightPickerS = 1;
+let backlightPickerV = 1;
+let backlightColorDragging = null; // 'hue' | 'sv' | null
 let statusUpdatesPausedUntil = 0;
 let lastBleWriteTime = 0;
 const BLE_MIN_WRITE_INTERVAL_MS = 800; // Éviter "GATT operation already in progress" / NotSupportedError
@@ -1095,7 +1103,9 @@ function handleESP32Message(data) {
             break;
         case 'config': {
             // Configuration clavier reçue du périphérique (après get_config) — synchroniser l'UI
+            let hadKeys = false;
             if (data.keys && typeof data.keys === 'object') {
+                hadKeys = true;
                 ensureProfiles();
                 const profile = config.profiles['Profil 1'] || config.profiles[config.activeProfile];
                 if (profile) {
@@ -1105,16 +1115,31 @@ function handleESP32Message(data) {
                         if (v !== undefined && v !== '') profile.keys[keyId] = { type: 'key', value: String(v) };
                     }
                 }
-                if (data.rows !== undefined) config.rows = data.rows;
-                if (data.cols !== undefined) config.cols = data.cols;
-                if (data.activeProfile) config.activeProfile = data.activeProfile;
-                if (data.outputMode) config.outputMode = data.outputMode;
-                if (data.platform) { if (!config.settings) config.settings = {}; config.settings.platform = data.platform; }
-                if (data.bleDeviceName && config.settings) config.settings.bleDeviceName = data.bleDeviceName;
+            }
+            if (data.rows !== undefined) config.rows = data.rows;
+            if (data.cols !== undefined) config.cols = data.cols;
+            if (data.activeProfile) config.activeProfile = data.activeProfile;
+            if (data.outputMode) config.outputMode = data.outputMode;
+            if (data.platform) { if (!config.settings) config.settings = {}; config.settings.platform = data.platform; }
+            if (data.bleDeviceName && config.settings) config.settings.bleDeviceName = data.bleDeviceName;
+            if (data.backlight && typeof data.backlight === 'object') {
+                const b = data.backlight;
+                if (b.enabled !== undefined) config.backlight.enabled = !!b.enabled;
+                if (b.brightness !== undefined) config.backlight.brightness = Math.max(0, Math.min(255, Number(b.brightness) | 0));
+                if (b.envBrightness !== undefined) config.backlight.envBrightness = !!b.envBrightness;
+                if (b.colorR !== undefined) config.backlight.colorR = Math.max(0, Math.min(255, Number(b.colorR) | 0));
+                if (b.colorG !== undefined) config.backlight.colorG = Math.max(0, Math.min(255, Number(b.colorG) | 0));
+                if (b.colorB !== undefined) config.backlight.colorB = Math.max(0, Math.min(255, Number(b.colorB) | 0));
+                ensureBacklightDefaults(config.backlight);
+                applyBacklightStateToUI();
+            }
+            if (hadKeys || (data.backlight && typeof data.backlight === 'object')) {
                 saveConfig();
-                initializeGrid();
-                updateDisplayInfo();
-                populateProfileSelect();
+                if (hadKeys) {
+                    initializeGrid();
+                    updateDisplayInfo();
+                    populateProfileSelect();
+                }
                 console.log('[DEBUG] [WEB_UI] Config from device applied to UI');
             }
             break;
@@ -1196,7 +1221,19 @@ function loadConfig() {
     let savedConfig;
     try {
         savedConfig = JSON.parse(saved);
+        const baseBacklight = {
+            enabled: true,
+            brightness: 128,
+            autoBrightness: false,
+            envBrightness: false,
+            colorR: 255,
+            colorG: 180,
+            colorB: 50
+        };
         config = { ...config, ...savedConfig };
+        const fromSavedBl = savedConfig.backlight && typeof savedConfig.backlight === 'object' ? savedConfig.backlight : null;
+        config.backlight = { ...baseBacklight, ...(fromSavedBl || config.backlight || {}) };
+        ensureBacklightDefaults(config.backlight);
         // Ne jamais restaurer l'état de connexion (déconnecté au chargement)
         config.connected = false;
         config.connectionType = null;
@@ -1212,21 +1249,8 @@ function loadConfig() {
         return;
     }
     
-    if (savedConfig.backlight) {
-        const be = document.getElementById('backlight-enabled');
-        if (be) be.checked = savedConfig.backlight.enabled !== false;
-        const b = savedConfig.backlight.brightness ?? 128;
-        const pct = Math.round((b / 255) * 100);
-        const sl = document.getElementById('backlight-brightness');
-        const pv = document.getElementById('brightness-value');
-        if (sl) sl.value = pct;
-        if (pv) pv.textContent = pct + '%';
-        const ab = document.getElementById('auto-brightness');
-        if (ab) ab.checked = savedConfig.backlight.autoBrightness === true;
-        const eb = document.getElementById('env-brightness');
-        if (eb) eb.checked = savedConfig.backlight.envBrightness === true;
-    }
-    
+    applyBacklightStateToUI();
+
     if (savedConfig.display) {
         const defCustom = { showProfile: true, showBattery: true, showMode: true, showKeys: true, showBacklight: true, showCustom1: false, showCustom2: false, customLine1: '', customLine2: '' };
         config.display = { mode: 'data', imageData: null, gifFrames: [], ...savedConfig.display };
@@ -1288,8 +1312,439 @@ function loadConfig() {
     if (savedConfig && savedConfig.bleDeviceName && config.settings) config.settings.bleDeviceName = savedConfig.bleDeviceName;
 }
 
+function ensureBacklightDefaults(bl) {
+    if (!bl || typeof bl !== 'object') return;
+    if (bl.enabled === undefined) bl.enabled = true;
+    if (bl.brightness === undefined) bl.brightness = 128;
+    if (bl.autoBrightness === undefined) bl.autoBrightness = false;
+    if (bl.envBrightness === undefined) bl.envBrightness = false;
+    if (typeof bl.colorR !== 'number' || Number.isNaN(bl.colorR)) bl.colorR = 255;
+    if (typeof bl.colorG !== 'number' || Number.isNaN(bl.colorG)) bl.colorG = 180;
+    if (typeof bl.colorB !== 'number' || Number.isNaN(bl.colorB)) bl.colorB = 50;
+    bl.colorR = Math.max(0, Math.min(255, Math.round(bl.colorR)));
+    bl.colorG = Math.max(0, Math.min(255, Math.round(bl.colorG)));
+    bl.colorB = Math.max(0, Math.min(255, Math.round(bl.colorB)));
+}
+
+function rgbToHex(r, g, b) {
+    const h = (n) => Math.max(0, Math.min(255, n | 0)).toString(16).padStart(2, '0');
+    return '#' + h(r) + h(g) + h(b);
+}
+
+function hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') return null;
+    let s = hex.trim();
+    if (s[0] === '#') s = s.slice(1);
+    if (s.length === 3) {
+        s = s.split('').map((c) => c + c).join('');
+    }
+    if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+    return {
+        r: parseInt(s.slice(0, 2), 16),
+        g: parseInt(s.slice(2, 4), 16),
+        b: parseInt(s.slice(4, 6), 16)
+    };
+}
+
+function rgbToHsv(r, g, b) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+    let h = 0;
+    if (d > 1e-6) {
+        if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        else if (max === g) h = ((b - r) / d + 2) / 6;
+        else h = ((r - g) / d + 4) / 6;
+    }
+    const s = max < 1e-6 ? 0 : d / max;
+    const v = max;
+    return { h: h * 360, s, v };
+}
+
+function hsvToRgb(h, s, v) {
+    h = ((h % 360) + 360) % 360;
+    const c = v * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = v - c;
+    let rp = 0;
+    let gp = 0;
+    let bp = 0;
+    if (h < 60) [rp, gp, bp] = [c, x, 0];
+    else if (h < 120) [rp, gp, bp] = [x, c, 0];
+    else if (h < 180) [rp, gp, bp] = [0, c, x];
+    else if (h < 240) [rp, gp, bp] = [0, x, c];
+    else if (h < 300) [rp, gp, bp] = [x, 0, c];
+    else [rp, gp, bp] = [c, 0, x];
+    return {
+        r: Math.round((rp + m) * 255),
+        g: Math.round((gp + m) * 255),
+        b: Math.round((bp + m) * 255)
+    };
+}
+
+const BACKLIGHT_PALETTE_HEX = [
+    '#ffffff', '#e8e8e8', '#ffb432', '#ff6b6b', '#ee5a6f', '#c44569', '#9b59b6', '#6c5ce7',
+    '#0984e3', '#00b894', '#00cec9', '#55efc4', '#ffeaa7', '#fdcb6e', '#e17055', '#636e72', '#2d3436'
+];
+
+function syncBacklightPickerHsvFromConfig() {
+    ensureBacklightDefaults(config.backlight);
+    const { h, s, v } = rgbToHsv(config.backlight.colorR, config.backlight.colorG, config.backlight.colorB);
+    backlightPickerH = h;
+    backlightPickerS = s;
+    backlightPickerV = v;
+}
+
+function refreshBacklightColorUI() {
+    ensureBacklightDefaults(config.backlight);
+    const { colorR: r, colorG: g, colorB: b } = config.backlight;
+    const sw = document.getElementById('backlight-color-swatch');
+    if (sw) sw.style.background = rgbToHex(r, g, b);
+    const hexIn = document.getElementById('backlight-color-hex');
+    if (hexIn && document.activeElement !== hexIn) hexIn.value = rgbToHex(r, g, b);
+    const ir = document.getElementById('backlight-color-r');
+    const ig = document.getElementById('backlight-color-g');
+    const ib = document.getElementById('backlight-color-b');
+    if (ir && document.activeElement !== ir) ir.value = String(r);
+    if (ig && document.activeElement !== ig) ig.value = String(g);
+    if (ib && document.activeElement !== ib) ib.value = String(b);
+    redrawBacklightColorCanvases();
+}
+
+function redrawBacklightColorCanvases() {
+    const wheel = document.getElementById('backlight-hue-wheel');
+    const sv = document.getElementById('backlight-sv-plane');
+    if (wheel) drawBacklightHueWheel(wheel);
+    if (sv) drawBacklightSvPlane(sv);
+}
+
+function drawBacklightHueWheel(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const rOuter = Math.min(cx, cy) - 6;
+    const rInner = rOuter * 0.52;
+    ctx.clearRect(0, 0, w, h);
+    for (let angle = 0; angle < 360; angle += 0.75) {
+        const rad0 = ((angle - 0.5) * Math.PI) / 180;
+        const rad1 = ((angle + 0.5) * Math.PI) / 180;
+        ctx.beginPath();
+        ctx.strokeStyle = `hsl(${angle}, 100%, 50%)`;
+        ctx.lineWidth = rOuter - rInner;
+        ctx.arc(cx, cy, (rOuter + rInner) / 2, rad0, rad1);
+        ctx.stroke();
+    }
+    const hx = cx + Math.cos((backlightPickerH * Math.PI) / 180) * ((rOuter + rInner) / 2);
+    const hy = cy + Math.sin((backlightPickerH * Math.PI) / 180) * ((rOuter + rInner) / 2);
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth = 2;
+    ctx.arc(hx, hy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+}
+
+function drawBacklightSvPlane(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const hue = backlightPickerH;
+    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+    ctx.fillRect(0, 0, w, h);
+    const g1 = ctx.createLinearGradient(0, 0, w, 0);
+    g1.addColorStop(0, 'rgba(255,255,255,1)');
+    g1.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g1;
+    ctx.fillRect(0, 0, w, h);
+    const g2 = ctx.createLinearGradient(0, 0, 0, h);
+    g2.addColorStop(0, 'rgba(0,0,0,0)');
+    g2.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, w, h);
+    const mx = backlightPickerS * w;
+    const my = (1 - backlightPickerV) * h;
+    ctx.beginPath();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 4;
+    ctx.arc(mx, my, 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+}
+
+function canvasEventToLocal(canvas, ev) {
+    const rect = canvas.getBoundingClientRect();
+    const x = ((ev.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((ev.clientY - rect.top) / rect.height) * canvas.height;
+    return { x, y };
+}
+
+function applyBacklightRgbFromPicker(r, g, b, options) {
+    const opts = options || {};
+    ensureBacklightDefaults(config.backlight);
+    config.backlight.colorR = Math.max(0, Math.min(255, Math.round(r)));
+    config.backlight.colorG = Math.max(0, Math.min(255, Math.round(g)));
+    config.backlight.colorB = Math.max(0, Math.min(255, Math.round(b)));
+    const hsv = rgbToHsv(config.backlight.colorR, config.backlight.colorG, config.backlight.colorB);
+    backlightPickerH = hsv.h;
+    backlightPickerS = hsv.s;
+    backlightPickerV = hsv.v;
+    refreshBacklightColorUI();
+    if (!opts.skipSave) saveConfig();
+    if (opts.preview !== false && config.connected) scheduleBacklightColorDevicePreview();
+}
+
+function scheduleBacklightColorDevicePreview() {
+    if (backlightColorPreviewTimer) clearTimeout(backlightColorPreviewTimer);
+    backlightColorPreviewTimer = setTimeout(async () => {
+        backlightColorPreviewTimer = null;
+        try {
+            await sendBacklightConfig();
+        } catch (e) {
+            console.warn('scheduleBacklightColorDevicePreview', e);
+        }
+    }, 420);
+}
+
+function setBacklightColorTab(name) {
+    document.querySelectorAll('.color-tab-btn').forEach((btn) => {
+        const on = btn.dataset.tab === name;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    ['wheel', 'palette', 'code'].forEach((t) => {
+        const el = document.getElementById('color-tab-' + t);
+        if (!el) return;
+        const show = t === name;
+        el.hidden = !show;
+        el.classList.toggle('is-hidden', !show);
+    });
+}
+
+function openBacklightColorPopover() {
+    const pop = document.getElementById('backlight-color-popover');
+    const trg = document.getElementById('backlight-color-trigger');
+    if (!pop || !trg) return;
+    syncBacklightPickerHsvFromConfig();
+    refreshBacklightColorUI();
+    pop.hidden = false;
+    trg.setAttribute('aria-expanded', 'true');
+    setBacklightColorTab('wheel');
+}
+
+function closeBacklightColorPopover() {
+    const pop = document.getElementById('backlight-color-popover');
+    const trg = document.getElementById('backlight-color-trigger');
+    if (pop) pop.hidden = true;
+    if (trg) trg.setAttribute('aria-expanded', 'false');
+    backlightColorDragging = null;
+}
+
+function applyBacklightStateToUI() {
+    ensureBacklightDefaults(config.backlight);
+    const be = document.getElementById('backlight-enabled');
+    if (be) be.checked = config.backlight.enabled !== false;
+    const b = config.backlight.brightness ?? 128;
+    const pct = Math.round((b / 255) * 100);
+    const sl = document.getElementById('backlight-brightness');
+    const pv = document.getElementById('brightness-value');
+    if (sl) sl.value = pct;
+    if (pv) pv.textContent = pct + '%';
+    const ab = document.getElementById('auto-brightness');
+    if (ab) ab.checked = config.backlight.autoBrightness === true;
+    const eb = document.getElementById('env-brightness');
+    if (eb) eb.checked = config.backlight.envBrightness === true;
+    syncBacklightPickerHsvFromConfig();
+    refreshBacklightColorUI();
+}
+
+function setupBacklightColorPicker() {
+    const trigger = document.getElementById('backlight-color-trigger');
+    const pop = document.getElementById('backlight-color-popover');
+    const wheel = document.getElementById('backlight-hue-wheel');
+    const sv = document.getElementById('backlight-sv-plane');
+    const grid = document.getElementById('backlight-palette-grid');
+    const hexIn = document.getElementById('backlight-color-hex');
+    const ir = document.getElementById('backlight-color-r');
+    const ig = document.getElementById('backlight-color-g');
+    const ib = document.getElementById('backlight-color-b');
+    const btnClose = document.getElementById('backlight-color-close');
+    const btnLive = document.getElementById('backlight-color-apply-live');
+
+    if (grid && grid.children.length === 0) {
+        BACKLIGHT_PALETTE_HEX.forEach((hex) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'backlight-palette-swatch';
+            b.style.background = hex;
+            b.title = hex;
+            b.addEventListener('click', () => {
+                const rgb = hexToRgb(hex);
+                if (rgb) applyBacklightRgbFromPicker(rgb.r, rgb.g, rgb.b, {});
+            });
+            grid.appendChild(b);
+        });
+    }
+
+    document.querySelectorAll('.color-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => setBacklightColorTab(btn.dataset.tab));
+    });
+
+    if (trigger && pop) {
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (pop.hidden) openBacklightColorPopover();
+            else closeBacklightColorPopover();
+        });
+    }
+
+    if (btnClose) {
+        btnClose.addEventListener('click', async () => {
+            saveConfig();
+            if (config.connected) await sendBacklightConfig();
+            closeBacklightColorPopover();
+        });
+    }
+    if (btnLive) {
+        btnLive.addEventListener('click', async () => {
+            if (!config.connected) {
+                alert('Connectez-vous d’abord au macropad');
+                return;
+            }
+            await sendBacklightConfig();
+        });
+    }
+
+    function onHuePointer(ev) {
+        if (!wheel) return;
+        const { x, y } = canvasEventToLocal(wheel, ev);
+        const cx = wheel.width / 2;
+        const cy = wheel.height / 2;
+        const dx = x - cx;
+        const dy = y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const rOuter = Math.min(cx, cy) - 6;
+        const rInner = rOuter * 0.52;
+        if (dist < rInner || dist > rOuter + 8) return;
+        backlightPickerH = (Math.atan2(dy, dx) * 180) / Math.PI;
+        if (backlightPickerH < 0) backlightPickerH += 360;
+        const { r, g, b } = hsvToRgb(backlightPickerH, backlightPickerS, backlightPickerV);
+        applyBacklightRgbFromPicker(r, g, b, { skipSave: true, preview: true });
+    }
+
+    function onSvPointer(ev) {
+        if (!sv) return;
+        const { x, y } = canvasEventToLocal(sv, ev);
+        backlightPickerS = Math.max(0, Math.min(1, x / sv.width));
+        backlightPickerV = Math.max(0, Math.min(1, 1 - y / sv.height));
+        const { r, g, b } = hsvToRgb(backlightPickerH, backlightPickerS, backlightPickerV);
+        applyBacklightRgbFromPicker(r, g, b, { skipSave: true, preview: true });
+    }
+
+    if (wheel) {
+        wheel.addEventListener('pointerdown', (ev) => {
+            ev.preventDefault();
+            wheel.setPointerCapture(ev.pointerId);
+            backlightColorDragging = 'hue';
+            onHuePointer(ev);
+        });
+        wheel.addEventListener('pointermove', (ev) => {
+            if (backlightColorDragging !== 'hue') return;
+            onHuePointer(ev);
+        });
+        wheel.addEventListener('pointerup', (ev) => {
+            if (backlightColorDragging === 'hue') {
+                backlightColorDragging = null;
+                saveConfig();
+            }
+            try {
+                wheel.releasePointerCapture(ev.pointerId);
+            } catch (_) { /* ignore */ }
+        });
+        wheel.addEventListener('pointercancel', () => {
+            if (backlightColorDragging === 'hue') {
+                backlightColorDragging = null;
+                saveConfig();
+            }
+        });
+    }
+
+    if (sv) {
+        sv.addEventListener('pointerdown', (ev) => {
+            ev.preventDefault();
+            sv.setPointerCapture(ev.pointerId);
+            backlightColorDragging = 'sv';
+            onSvPointer(ev);
+        });
+        sv.addEventListener('pointermove', (ev) => {
+            if (backlightColorDragging !== 'sv') return;
+            onSvPointer(ev);
+        });
+        sv.addEventListener('pointerup', (ev) => {
+            if (backlightColorDragging === 'sv') {
+                backlightColorDragging = null;
+                saveConfig();
+            }
+            try {
+                sv.releasePointerCapture(ev.pointerId);
+            } catch (_) { /* ignore */ }
+        });
+        sv.addEventListener('pointercancel', () => {
+            if (backlightColorDragging === 'sv') {
+                backlightColorDragging = null;
+                saveConfig();
+            }
+        });
+    }
+
+    function commitRgbInputsOnly() {
+        if (!ir || !ig || !ib) return;
+        const r = Math.max(0, Math.min(255, parseInt(ir.value, 10)));
+        const g = Math.max(0, Math.min(255, parseInt(ig.value, 10)));
+        const b = Math.max(0, Math.min(255, parseInt(ib.value, 10)));
+        if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+            applyBacklightRgbFromPicker(r, g, b, {});
+        }
+    }
+
+    if (hexIn) {
+        hexIn.addEventListener('change', () => {
+            const rgb = hexToRgb(hexIn.value);
+            if (rgb) applyBacklightRgbFromPicker(rgb.r, rgb.g, rgb.b, {});
+        });
+        hexIn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const rgb = hexToRgb(hexIn.value);
+                if (rgb) applyBacklightRgbFromPicker(rgb.r, rgb.g, rgb.b, {});
+            }
+        });
+    }
+    [ir, ig, ib].forEach((el) => {
+        if (!el) return;
+        el.addEventListener('change', () => commitRgbInputsOnly());
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!pop || pop.hidden) return;
+        if (pop.contains(e.target) || (trigger && trigger.contains(e.target))) return;
+        closeBacklightColorPopover();
+    });
+}
+
 // Configurer les contrôles de rétro-éclairage
 function setupBacklightControls() {
+    setupBacklightColorPicker();
+    ensureBacklightDefaults(config.backlight);
+    refreshBacklightColorUI();
+
     const brightnessSlider = document.getElementById('backlight-brightness');
     const brightnessValue = document.getElementById('brightness-value');
     if (!brightnessSlider || !brightnessValue) return;

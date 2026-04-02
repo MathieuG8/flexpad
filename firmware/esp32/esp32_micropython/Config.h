@@ -64,11 +64,12 @@ static const uint8_t COL_PINS[NUM_COLS] = {16, 17, 18, 8};    // C0..C3
 #define CMD_SET_LAST_KEY 0x0C
 
 // ─── LEDs ───────────────────────────────────────────────────────────────────
-// Built-in RGB LED (ESP32-S3 DevKit): NeoPixel sur GPIO 38 — contrôlé par ledStrip
-#define ENABLE_LED_STRIP 1   // 1 = built-in RGB LED (ESP32-S3 DevKit)
-#define LED_STRIP_PIN 38    // Built-in RGB: GPIO 38 (v1.1) ou 48 (v1.0)
-#define LED_STRIP_COUNT 1   // Single built-in LED (pas de strip externe)
-#define LED_PWM_PIN -1      // -1 = pas de PWM séparé (built-in = NeoPixel uniquement)
+// Strip NeoPixel / SK6812 (rétroéclairage RVB) — GPIO 48 sur carte finale
+#define ENABLE_LED_STRIP 1
+#define LED_STRIP_PIN 48
+#define LED_STRIP_COUNT 1
+// LED blanche PWM séparée (si câblée). -1 = désactivé.
+#define LED_PWM_PIN 45
 
 // ─── Keymap par défaut (grille physique) ────────────────────────────────────
 // [PROFILE] [/] [*] [-]
