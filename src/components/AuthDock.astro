@@ -3,7 +3,14 @@
 ---
 
 <div class="auth-dock">
-  <a href="/login" class="auth-dock__link" id="auth-dock-link" data-default-label="Connexion" data-logged-label="Compte">
+  <a
+    href="/login"
+    class="auth-dock__link"
+    id="auth-dock-link"
+    data-default-label="Connexion"
+    data-logged-label="Compte"
+    aria-label="Connexion"
+  >
     <span class="auth-dock__icon" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
@@ -27,14 +34,17 @@
         if (data?.user) {
           link.setAttribute('href', '/dashboard');
           label.textContent = logged;
+          link.setAttribute('aria-label', logged);
         } else {
           link.setAttribute('href', '/login');
           label.textContent = def;
+          link.setAttribute('aria-label', def);
         }
       })
       .catch(() => {
         link.setAttribute('href', '/login');
         label.textContent = def;
+        link.setAttribute('aria-label', def);
       });
   }
 

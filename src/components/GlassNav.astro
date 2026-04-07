@@ -16,22 +16,110 @@ const links = [
   { href: '/checkout/', label: 'Panier' },
   { href: '/config/', label: 'Configuration' },
 ] as const;
+
+const panelId = 'glass-nav-panel';
+const toggleId = 'glass-nav-toggle';
+const mountId = 'glass-nav-mount';
+const dockId = 'glass-nav-dock';
 ---
 
-<nav class="glass-nav-dock" aria-label="Navigation principale">
-  <div class="glass-nav">
-    <div class="glass-nav__inner">
-      {
-        links.map(({ href, label }) => (
-          <a
-            href={href}
-            class:list={['glass-nav__link', { 'glass-nav__link--active': isActive(href) }]}
-            aria-current={isActive(href) ? 'page' : undefined}
-          >
-            {label}
-          </a>
-        ))
-      }
+<div class="glass-nav-mount" id={mountId}>
+  <div class="glass-nav__backdrop" id="glass-nav-backdrop" aria-hidden="true"></div>
+  <nav class="glass-nav-dock" id={dockId} aria-label="Navigation principale">
+    <div class="glass-nav">
+      <button
+        type="button"
+        class="glass-nav__toggle"
+        id={toggleId}
+        aria-expanded="false"
+        aria-controls={panelId}
+        aria-label="Ouvrir le menu"
+      >
+        <span class="glass-nav__toggle-bars" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <div class="glass-nav__panel" id={panelId}>
+        <div class="glass-nav__inner">
+          {
+            links.map(({ href, label }) => (
+              <a
+                href={href}
+                class:list={['glass-nav__link', { 'glass-nav__link--active': isActive(href) }]}
+                aria-current={isActive(href) ? 'page' : undefined}
+              >
+                {label}
+              </a>
+            ))
+          }
+        </div>
+      </div>
     </div>
-  </div>
-</nav>
+  </nav>
+</div>
+
+<script>
+  function setupGlassNav() {
+    const toggle = document.getElementById('glass-nav-toggle');
+    const panel = document.getElementById('glass-nav-panel');
+    const mount = document.getElementById('glass-nav-mount');
+    const backdrop = document.getElementById('glass-nav-backdrop');
+    if (!toggle || !panel || !mount || !backdrop) return;
+    if (toggle.dataset.glassNavBound === '1') return;
+    toggle.dataset.glassNavBound = '1';
+
+    const mq = window.matchMedia('(max-width: 1024px)');
+
+    function setOpen(open) {
+      mount.classList.toggle('glass-nav-mount--open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+      backdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
+      document.body.classList.toggle('glass-nav-menu-open', open);
+    }
+
+    function close() {
+      setOpen(false);
+    }
+
+    toggle.addEventListener('click', () => {
+      if (!mq.matches) return;
+      const open = toggle.getAttribute('aria-expanded') === 'true';
+      setOpen(!open);
+    });
+
+    backdrop.addEventListener('click', close);
+
+    panel.querySelectorAll('a.glass-nav__link').forEach((a) => {
+      a.addEventListener('click', () => {
+        if (mq.matches) close();
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mq.matches && mount.classList.contains('glass-nav-mount--open')) {
+        close();
+        toggle.focus();
+      }
+    });
+
+    function applyMq() {
+      if (!mq.matches) {
+        close();
+      }
+    }
+
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', applyMq);
+    } else {
+      mq.addListener(applyMq);
+    }
+
+    applyMq();
+  }
+
+  setupGlassNav();
+  document.addEventListener('astro:page-load', setupGlassNav);
+</script>

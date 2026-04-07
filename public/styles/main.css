@@ -262,7 +262,8 @@ html {
   white-space: nowrap;
 }
 
-@media (max-width: 480px) {
+/* Même rupture que le menu vitrine : connexion = icône seule */
+@media (max-width: 1204px) {
   .auth-dock__label {
     display: none;
   }
@@ -272,6 +273,11 @@ html {
     min-width: 48px;
     padding: 0;
     justify-content: center;
+  }
+
+  .auth-dock__link .auth-dock__icon svg {
+    width: 22px;
+    height: 22px;
   }
 }
 
