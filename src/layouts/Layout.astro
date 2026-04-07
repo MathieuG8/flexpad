@@ -9,9 +9,11 @@ interface Props {
   title?: string;
   /** Pages vitrine : main.css, fond hero sur toute la page, pied de page commun */
   site?: boolean;
+  /** Réutilise le fond déco vitrine (grille/circuits) sans basculer toute la page sur main.css */
+  backdrop?: boolean;
 }
 
-const { title = "Configuration Macropad", site = false } = Astro.props;
+const { title = "Configuration Macropad", site = false, backdrop = false } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -29,6 +31,9 @@ const { title = "Configuration Macropad", site = false } = Astro.props;
   ) : (
     <link rel="stylesheet" href="/styles/global.css" />
   )}
+  {!site && backdrop && (
+    <link rel="stylesheet" href="/styles/site-backdrop.css" />
+  )}
   <link rel="stylesheet" href="/styles/glass-nav.css" />
   <ViewTransitions />
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.563.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
@@ -41,7 +46,7 @@ const { title = "Configuration Macropad", site = false } = Astro.props;
       <CartWidget />
     </div>
   )}
-  {site ? (
+  {(site || backdrop) ? (
     <div class="main-page">
       <div class="main-page-backdrop" aria-hidden="true">
         <div class="main-page-backdrop__stage">
@@ -60,7 +65,7 @@ const { title = "Configuration Macropad", site = false } = Astro.props;
         <div class="main-page-main">
           <slot />
         </div>
-        <SiteFooter />
+        {site && <SiteFooter />}
       </div>
     </div>
   ) : (

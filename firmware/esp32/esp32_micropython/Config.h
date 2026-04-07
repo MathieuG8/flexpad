@@ -67,7 +67,15 @@ static const uint8_t COL_PINS[NUM_COLS] = {16, 17, 18, 8};    // C0..C3
 // Strip NeoPixel / SK6812 (rétroéclairage RVB) — GPIO 48 sur carte finale
 #define ENABLE_LED_STRIP 1
 #define LED_STRIP_PIN 48
-#define LED_STRIP_COUNT 1
+// Nombre de LEDs sur la chaîne DES TOUCHES.
+// Si ta carte a aussi une LED RGB intégrée sur la même pin, elle est souvent câblée "en parallèle"
+// (pas en série): dans ce cas elle reçoit exactement le pixel 0 et on ne peut pas l'éteindre
+// sans aussi éteindre la touche 0. Si au contraire elle est "en série" avant les touches,
+// mets LED_STRIP_FIRST_PIXEL_RESERVED à 1 pour réserver le pixel 0 à la LED intégrée.
+#define LED_STRIP_COUNT 17
+// 0 = les touches commencent au pixel 0 (recommandé si ta touche 0 est pixel0)
+// 1 = le pixel 0 est réservé (LED intégrée en série), les touches commencent au pixel 1
+#define LED_STRIP_FIRST_PIXEL_RESERVED 0
 // LED blanche PWM séparée (si câblée). -1 = désactivé.
 #define LED_PWM_PIN 45
 

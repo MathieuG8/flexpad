@@ -165,6 +165,18 @@ bool BLE_AVAILABLE = false;
 String platformDetected = "unknown";
 Adafruit_NeoPixel ledStrip(LED_STRIP_COUNT, LED_STRIP_PIN, NEO_GRB + NEO_KHZ800);
 
+// LEDs: selon le câblage, la LED intégrée peut être:
+// - en série avant les touches (pixel 0 réservé)
+// - ou en parallèle (elle "copie" le pixel 0 des touches, impossible à séparer en software)
+static constexpr uint16_t BUILTIN_PIXEL_INDEX = 0;
+static constexpr uint16_t KEY_PIXELS_OFFSET =
+#if LED_STRIP_FIRST_PIXEL_RESERVED
+  1
+#else
+  0
+#endif
+  ;
+
 // OTA
 bool ota_in_progress = false;
 int ota_chunk_count = 0;
@@ -870,12 +882,13 @@ void apply_keymap_defaults() {
 
 int row_col_to_led_index(int row, int col) {
     // Mapping grille 5x4 vers 17 LEDs (ordre: 0-0..0-3, 1-0..1-3, 2-0..2-2, 3-0..3-3, 4-0, 4-1)
-    if (row == 2 && col == 3) return 7;   // 2-3 = partie de +
-    if (row == 4 && col == 1) return 16;  // 4-1 = touche "."
-    if (row == 4 && col == 2) return 16;  // 4-2 (matrix) = affiché comme 4-1
-    if (row == 4 && col == 3) return 14;  // 4-3 = partie de =
+    if (row == 2 && col == 3) return (int)(7 + KEY_PIXELS_OFFSET);   // 2-3 = partie de +
+    if (row == 4 && col == 1) return (int)(16 + KEY_PIXELS_OFFSET);  // 4-1 = touche "."
+    if (row == 4 && col == 2) return (int)(16 + KEY_PIXELS_OFFSET);  // 4-2 (matrix) = affiché comme 4-1
+    if (row == 4 && col == 3) return (int)(14 + KEY_PIXELS_OFFSET);  // 4-3 = partie de =
     int idx = row * 4 + col;
-    if (idx >= LED_STRIP_COUNT) return 0;
+    idx += (int)KEY_PIXELS_OFFSET;
+    if (idx < 0 || idx >= (int)LED_STRIP_COUNT) return -1;
     return idx;
 }
 
@@ -951,7 +964,14 @@ void update_builtin_led_from_light() {
     }
     
     ledStrip.setBrightness(255);
-    ledStrip.setPixelColor(0, ledStrip.Color(led_current_r, led_current_g, led_current_b));
+    // Si le pixel 0 est "réservé" (LED intégrée en série), on le force à OFF.
+#if LED_STRIP_FIRST_PIXEL_RESERVED
+    ledStrip.setPixelColor(BUILTIN_PIXEL_INDEX, 0);
+#endif
+    uint32_t keyColor = ledStrip.Color(led_current_r, led_current_g, led_current_b);
+    for (uint16_t i = (uint16_t)KEY_PIXELS_OFFSET; i < (uint16_t)LED_STRIP_COUNT; i++) {
+        ledStrip.setPixelColor(i, keyColor);
+    }
     ledStrip.show();
 #endif
 
