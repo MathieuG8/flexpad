@@ -5,6 +5,9 @@
 build/
 .vscode/
 node_modules/
+# Sortie `astro build` avec adapter Vercel — ne jamais committer (sinon déploiement « prebuilt » + runtime obsolète).
+.vercel/output/
+
 .env
 .env.local
 .env.*.local

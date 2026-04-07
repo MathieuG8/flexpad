@@ -2,7 +2,7 @@ import { c as createComponent, g as renderComponent, r as renderTemplate, d as c
 import { $ as $$Layout } from '../../../chunks/Layout_Dz_HxGPl.mjs';
 import { $ as $$DashboardChrome } from '../../../chunks/DashboardChrome_B_dJmZh-.mjs';
 import { $ as $$AdminPlaceholder } from '../../../chunks/AdminPlaceholder_BdCZGPLC.mjs';
-import { g as getSession } from '../../../chunks/server_DSDCZ1go.mjs';
+import { g as getSession } from '../../../chunks/server_D6DUr65O.mjs';
 export { renderers } from '../../../renderers.mjs';
 
 const $$Astro = createAstro();

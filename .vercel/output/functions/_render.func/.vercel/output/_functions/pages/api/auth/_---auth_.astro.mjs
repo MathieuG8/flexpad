@@ -1,4 +1,4 @@
-import { A as AstroAuth } from '../../../chunks/server_DSDCZ1go.mjs';
+import { A as AstroAuth } from '../../../chunks/server_D6DUr65O.mjs';
 export { renderers } from '../../../renderers.mjs';
 
 const prerender = false;

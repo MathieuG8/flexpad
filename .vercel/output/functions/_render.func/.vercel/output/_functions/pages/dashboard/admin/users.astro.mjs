@@ -1,7 +1,7 @@
 import { c as createComponent, g as renderComponent, r as renderTemplate, d as createAstro, m as maybeRenderHead } from '../../../chunks/astro/server_Cfy4trcV.mjs';
 import { $ as $$Layout } from '../../../chunks/Layout_Dz_HxGPl.mjs';
 import { $ as $$DashboardChrome } from '../../../chunks/DashboardChrome_B_dJmZh-.mjs';
-import { g as getSession, d as db, u as users } from '../../../chunks/server_DSDCZ1go.mjs';
+import { g as getSession, d as db, u as users } from '../../../chunks/server_D6DUr65O.mjs';
 export { renderers } from '../../../renderers.mjs';
 
 const $$Astro = createAstro();
