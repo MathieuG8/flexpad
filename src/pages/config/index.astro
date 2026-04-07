@@ -1,0 +1,53 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import NumpadGrid from '../../components/NumpadGrid.astro';
+import ConfigPanel from '../../components/ConfigPanel.astro';
+import StatusBar from '../../components/StatusBar.astro';
+import TabNavigation from '../../components/TabNavigation.astro';
+import BacklightPanel from '../../components/BacklightPanel.astro';
+import SettingsPanel from '../../components/SettingsPanel.astro';
+---
+
+<Layout title="Configuration Macropad">
+  <div class="container">
+    <header>
+      <h1>
+        <i data-lucide="keyboard" class="header-icon"></i>
+        Configuration Macropad
+      </h1>
+      <p class="subtitle">Personnalisez vos touches</p>
+    </header>
+
+    <StatusBar />
+
+    <TabNavigation />
+
+    <div class="tabs-content">
+      <!-- Onglet Principal -->
+      <div class="tab-panel active" id="tab-main">
+        <div class="main-layout">
+          <div class="main-column left-column">
+            <div class="grid-container">
+              <NumpadGrid />
+            </div>
+          </div>
+          <div class="main-column center-column">
+            <ConfigPanel />
+          </div>
+        </div>
+      </div>
+
+      <!-- Onglet Matériel -->
+      <div class="tab-panel" id="tab-hardware">
+        <div class="hardware-layout hardware-layout-full">
+          <BacklightPanel />
+        </div>
+      </div>
+
+      <!-- Onglet Paramètres -->
+      <div class="tab-panel" id="tab-settings">
+        <SettingsPanel />
+      </div>
+    </div>
+  </div>
+</Layout>

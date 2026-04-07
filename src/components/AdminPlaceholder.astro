@@ -1,0 +1,12 @@
+---
+interface Props {
+  title: string;
+  body?: string;
+}
+const { title, body = 'Section réservée à une future intégration (données réelles, API, exports).' } = Astro.props;
+---
+
+<div class="admin-placeholder reveal visible">
+  <h2 class="dashboard-card__title">{title}</h2>
+  <p class="dashboard-note">{body}</p>
+</div>

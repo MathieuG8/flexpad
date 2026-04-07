@@ -1,79 +1,143 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import NumpadGrid from '../components/NumpadGrid.astro';
-import ConfigPanel from '../components/ConfigPanel.astro';
-import StatusBar from '../components/StatusBar.astro';
-import TabNavigation from '../components/TabNavigation.astro';
-import BacklightPanel from '../components/BacklightPanel.astro';
-import SettingsPanel from '../components/SettingsPanel.astro';
 ---
 
-<Layout title="Configuration Macropad">
-  <div class="container">
-    <header>
-      <h1>
-        <i data-lucide="keyboard" class="header-icon"></i>
-        Configuration Macropad
-      </h1>
-      <p class="subtitle">Personnalisez vos touches</p>
-    </header>
-
-    <StatusBar />
-
-    <TabNavigation />
-
-    <div class="tabs-content">
-      <!-- Onglet Principal -->
-      <div class="tab-panel active" id="tab-main">
-        <div class="main-layout">
-          <div class="main-column left-column">
-            <div class="grid-container">
-              <NumpadGrid />
-            </div>
-          </div>
-          <div class="main-column center-column">
-            <ConfigPanel />
-          </div>
+<Layout site title="FlexPad - Pavé numérique programmable | BE PRODUCTIVE">
+  <section class="hero" id="hero">
+    <div class="hero-content">
+      <div class="hero-logo-wrapper">
+        <div class="hero-logo-frame">
+          <img src="/images/flexpad-logo.png" alt="FlexPad Logo" class="hero-logo" />
         </div>
       </div>
-
-      <!-- Onglet Matériel -->
-      <div class="tab-panel" id="tab-hardware">
-        <div class="hardware-layout hardware-layout-full">
-          <BacklightPanel />
-        </div>
-      </div>
-
-      <!-- Onglet Paramètres -->
-      <div class="tab-panel" id="tab-settings">
-        <SettingsPanel />
+      <h1 class="hero-title">FlexPad</h1>
+      <p class="hero-tagline">BE PRODUCTIVE</p>
+      <p class="hero-subtitle">Pavé numérique programmable — Conçu pour optimiser votre workflow</p>
+      <div class="hero-cta">
+        <a href="/product/" class="btn-primary">Découvrir le produit</a>
+        <a href="/contact/" class="btn-secondary">Nous contacter</a>
       </div>
     </div>
-  </div>
-</Layout>
 
-<script>
-  import { initApp } from '../../public/scripts/main.js';
-  
-  // Initialiser les icônes Lucide
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
-  
-  // Initialiser l'application
-  document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-    
-    // Mettre à jour les icônes après changement de thème
-    const observer = new MutationObserver(() => {
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
-    });
-    
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
-  });
-</script>
+    <div class="scroll-indicator">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M19 12l-7 7-7-7"/>
+      </svg>
+    </div>
+  </section>
+
+  <section class="product-section" id="product">
+    <h2 class="section-title reveal">Le Pavé Numérique</h2>
+    <p class="section-subtitle reveal">Programmable, personnalisable, productif</p>
+
+    <div class="product-showcase">
+      <div class="numpad-visual reveal reveal-delay-1">
+        <div class="numpad-device">
+          <div class="numpad-top-bar">
+            <div class="numpad-screen">FlexPad</div>
+            <div class="numpad-top-right">
+              <div class="numpad-light-sensor"></div>
+              <div class="numpad-rotary" title="Volume"></div>
+            </div>
+          </div>
+          <div class="numpad-grid">
+            <div class="numpad-key">Profile</div>
+            <div class="numpad-key">/</div>
+            <div class="numpad-key">*</div>
+            <div class="numpad-key">-</div>
+            <div class="numpad-key">7</div>
+            <div class="numpad-key">8</div>
+            <div class="numpad-key">9</div>
+            <div class="numpad-key numpad-key--tall">+</div>
+            <div class="numpad-key">4</div>
+            <div class="numpad-key">5</div>
+            <div class="numpad-key">6</div>
+            <div class="numpad-key">1</div>
+            <div class="numpad-key">2</div>
+            <div class="numpad-key">3</div>
+            <div class="numpad-key numpad-key--tall">=</div>
+            <div class="numpad-key numpad-key--wide">0</div>
+            <div class="numpad-key">.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="product-info reveal reveal-delay-2">
+        <h3>Votre productivité, personnalisée</h3>
+        <p>
+          FlexPad est un pavé numérique programmable conçu pour les professionnels 
+          qui veulent optimiser leur workflow. Chaque touche peut être configurée 
+          selon vos besoins.
+        </p>
+        <ul class="feature-list">
+          <li>20 touches — touche simple, modificateur, média, macro</li>
+          <li>Profils multiples — stockage flash ESP32</li>
+          <li>Interface web — Web Serial & Bluetooth</li>
+          <li>Rétro-éclairage avec capteur de luminosité auto</li>
+          <li>Encodeur rotatif Volume/Mute — OTA sans fil</li>
+        </ul>
+        <div class="product-actions">
+          <a href="/product/" class="btn-primary">Voir les détails</a>
+          <button type="button" class="btn-secondary" id="btn-add-to-cart-home">Ajouter au panier</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="parallax-divider" id="parallax-divider">
+    <div class="parallax-divider-content">
+      <h2>Conçu pour durer — BE PRODUCTIVE</h2>
+    </div>
+  </section>
+
+  <section class="contact-section" id="contact">
+    <h2 class="section-title reveal">Get in touch</h2>
+    <p class="section-subtitle reveal">Contactez-nous pour en savoir plus</p>
+
+    <div class="contact-grid">
+      <div class="contact-card reveal reveal-delay-1">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <h4>Créateur</h4>
+        <span>Mathieu Goulet</span>
+      </div>
+
+      <div class="contact-card reveal reveal-delay-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+        <h4>Téléphone</h4>
+        <a href="tel:+15145558888">+1 514 555 8888</a>
+      </div>
+
+      <div class="contact-card reveal reveal-delay-3">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        <h4>Email</h4>
+        <a href="mailto:contact@flexpad.com">contact@flexpad.com</a>
+      </div>
+
+      <div class="contact-card reveal reveal-delay-3">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+        </svg>
+        <h4>GitHub</h4>
+        <a href="https://github.com/MathieuG8" target="_blank" rel="noopener">github.com/MathieuG8</a>
+      </div>
+
+      <div class="contact-card reveal reveal-delay-4">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <h4>Site web</h4>
+        <a href="https://flexpad.vercel.app" target="_blank" rel="noopener">flexpad.vercel.app</a>
+      </div>
+    </div>
+  </section>
+</Layout>

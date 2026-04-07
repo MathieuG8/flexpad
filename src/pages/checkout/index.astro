@@ -1,0 +1,153 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout site title="FlexPad - Commander | BE PRODUCTIVE">
+  <div class="checkout-page">
+    <nav class="breadcrumb">
+      <a href="/">Accueil</a>
+      <span class="separator">/</span>
+      <a href="/product/">FlexPad</a>
+      <span class="separator">/</span>
+      <span>Commander</span>
+    </nav>
+
+    <div class="checkout-container checkout-container--wide">
+      <div class="checkout-steps reveal">
+        <div class="step active" data-step="1">
+          <span class="step-num">1</span>
+          <span>Panier</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" data-step="2">
+          <span class="step-num">2</span>
+          <span>Informations</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" data-step="3">
+          <span class="step-num">3</span>
+          <span>Confirmation</span>
+        </div>
+      </div>
+
+      <!-- Étape 1: Panier -->
+      <section class="checkout-step reveal" id="step-1">
+        <h2>Votre commande</h2>
+        <p class="contact-aside-note checkout-step-lead">
+          Parcours démo : aucun paiement réel. Les montants servent à illustrer un flux e-commerce classique.
+        </p>
+        <div class="checkout-cart-empty" id="cart-empty-msg" hidden>
+          <p>Votre panier est vide.</p>
+          <p class="contact-aside-note">Ajoutez un FlexPad depuis la fiche produit pour poursuivre.</p>
+          <a href="/product/" class="btn-primary">Voir le produit</a>
+        </div>
+        <div id="checkout-cart-content">
+        <div class="cart-item">
+          <div class="cart-item-image">
+            <div class="numpad-mini"></div>
+          </div>
+          <div class="cart-item-details">
+            <h3>FlexPad</h3>
+            <p>Pavé numérique programmable</p>
+            <div class="cart-quantity">
+              <label for="quantity">Quantité :</label>
+              <input type="number" id="quantity" min="1" max="10" value="1" />
+            </div>
+          </div>
+          <div class="cart-item-price">
+            <span class="unit-price" id="unit-price-label">149,99 $ / unité</span>
+            <span class="total-price" id="line-total">149,99 $</span>
+          </div>
+        </div>
+        <div class="checkout-summary">
+          <div class="checkout-summary-row">
+            <span>Sous-total</span>
+            <span id="checkout-subtotal">149,99 $</span>
+          </div>
+          <div class="checkout-summary-row">
+            <span>TPS (5&nbsp;%)</span>
+            <span id="checkout-tps">7,50 $</span>
+          </div>
+          <div class="checkout-summary-row">
+            <span>TVQ (9,975&nbsp;%)</span>
+            <span id="checkout-tvq">14,96 $</span>
+          </div>
+          <div class="checkout-summary-row checkout-summary-row--total">
+            <span>Total estimé</span>
+            <span id="checkout-grand-total">172,45 $</span>
+          </div>
+        </div>
+        <p class="checkout-trust-note">
+          Expédition standard Québec / Canada — délai indicatif 5 à 10 jours ouvrables. Confirmation par
+          courriel (simulée à l’étape 3).
+        </p>
+        <div class="cart-actions">
+          <a href="/product/" class="btn-secondary">Modifier le panier</a>
+          <button type="button" class="btn-primary" id="btn-to-step2">Continuer</button>
+        </div>
+        </div>
+      </section>
+
+      <!-- Étape 2: Informations -->
+      <section class="checkout-step hidden" id="step-2">
+        <h2>Vos informations</h2>
+        <p class="contact-aside-note">
+          Renseignez une adresse de livraison valide. Les champs marqués * sont obligatoires pour passer à
+          la confirmation.
+        </p>
+        <form id="checkout-form" class="checkout-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Nom complet *</label>
+              <input type="text" id="name" name="name" required placeholder="Mathieu Goulet" />
+            </div>
+            <div class="form-group">
+              <label for="email">Courriel *</label>
+              <input type="email" id="email" name="email" required placeholder="contact@flexpad.com" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="phone">Téléphone</label>
+              <input type="tel" id="phone" name="phone" placeholder="+1 514 555 8888" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="address">Adresse de livraison *</label>
+            <input type="text" id="address" name="address" required placeholder="123 rue Example, Montréal QC" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="city">Ville *</label>
+              <input type="text" id="city" name="city" required placeholder="Montréal" />
+            </div>
+            <div class="form-group">
+              <label for="postal">Code postal *</label>
+              <input type="text" id="postal" name="postal" required placeholder="H1A 1A1" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="btn-back-step2">Retour</button>
+            <button type="submit" class="btn-primary">Confirmer la commande</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Étape 3: Confirmation -->
+      <section class="checkout-step hidden" id="step-3">
+        <div class="confirmation-success">
+          <div class="success-icon">✓</div>
+          <h2>Commande confirmée !</h2>
+          <p>Merci pour votre commande démo. Dans un déploiement réel, un courriel récapitulatif serait envoyé à l’adresse indiquée.</p>
+          <p class="order-ref">Référence : <strong id="order-ref">FXP-0000</strong></p>
+          <p class="contact-aside-note">Le panier a été vidé dans le navigateur pour cette simulation.</p>
+          <div class="confirmation-success-actions">
+            <a href="/" class="btn-primary">Retour à l'accueil</a>
+            <a href="/product/" class="btn-secondary">Acheter à nouveau</a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+</Layout>

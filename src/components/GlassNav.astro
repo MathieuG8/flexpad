@@ -1,0 +1,37 @@
+---
+const rawPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+function isActive(href: string): boolean {
+  const h = href.replace(/\/$/, '') || '/';
+  if (h === '/') return rawPath === '/';
+  return rawPath === h || rawPath.startsWith(h + '/');
+}
+
+const links = [
+  { href: '/', label: 'Accueil' },
+  { href: '/product/', label: 'Produit' },
+  { href: '/features/', label: 'Fonctionnalités' },
+  { href: '/about/', label: 'À propos' },
+  { href: '/contact/', label: 'Contact' },
+  { href: '/checkout/', label: 'Panier' },
+  { href: '/config/', label: 'Configuration' },
+] as const;
+---
+
+<nav class="glass-nav-dock" aria-label="Navigation principale">
+  <div class="glass-nav">
+    <div class="glass-nav__inner">
+      {
+        links.map(({ href, label }) => (
+          <a
+            href={href}
+            class:list={['glass-nav__link', { 'glass-nav__link--active': isActive(href) }]}
+            aria-current={isActive(href) ? 'page' : undefined}
+          >
+            {label}
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</nav>

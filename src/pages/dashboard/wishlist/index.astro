@@ -1,0 +1,99 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import DashboardChrome from '../../../components/DashboardChrome.astro';
+import { getSession } from 'auth-astro/server';
+
+export const prerender = false;
+
+const session = await getSession(Astro.request);
+if (!session?.user) {
+  return Astro.redirect('/login?callbackUrl=/dashboard/wishlist');
+}
+
+const title = 'Liste de souhaits | FlexPad';
+const isAdmin = session.user.role === 'admin';
+---
+
+<Layout {title} site>
+  <div class="page-content dashboard-page dashboard-page--chrome">
+    <DashboardChrome
+      variant="user"
+      title="Liste de souhaits"
+      subtitle="Produits sauvegardés dans ce navigateur (localStorage)."
+      userName={session.user.name ?? session.user.email ?? 'Utilisateur'}
+      userEmail={session.user.email ?? ''}
+      isAdmin={isAdmin}
+    >
+      <div class="dashboard-card reveal visible">
+        <div id="wishlist-root" class="wishlist-root">
+          <p class="dashboard-note">Chargement…</p>
+        </div>
+        <template id="wishlist-empty-tpl">
+          <p class="dash-empty__icon" aria-hidden="true">♡</p>
+          <h2 class="dashboard-card__title">Liste vide</h2>
+          <p class="dashboard-note">
+            Ajoutez FlexPad à votre liste depuis la <a href="/product/">fiche produit</a>.
+          </p>
+          <a href="/product/" class="btn-primary">Voir FlexPad</a>
+        </template>
+        <template id="wishlist-list-tpl">
+          <ul class="wishlist-items" id="wishlist-items"></ul>
+          <p class="dashboard-note wishlist-hint">
+            Données locales à ce navigateur — elles ne sont pas synchronisées avec le serveur.
+          </p>
+        </template>
+      </div>
+    </DashboardChrome>
+  </div>
+</Layout>
+
+<script>
+  const KEY = 'flexpad_wishlist';
+  const root = document.getElementById('wishlist-root');
+  const emptyTpl = document.getElementById('wishlist-empty-tpl');
+  const listTpl = document.getElementById('wishlist-list-tpl');
+
+  function readList() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function render() {
+    if (!root) return;
+    const items = readList();
+    root.innerHTML = '';
+    if (items.length === 0) {
+      const node = emptyTpl?.content.cloneNode(true);
+      if (node) root.appendChild(node);
+      return;
+    }
+    const frag = listTpl?.content.cloneNode(true);
+    if (!frag || !(frag instanceof DocumentFragment)) return;
+    const ul = frag.querySelector('#wishlist-items');
+    items.forEach((entry) => {
+      const li = document.createElement('li');
+      li.className = 'wishlist-item';
+      const name = typeof entry.name === 'string' ? entry.name : 'Produit';
+      const id = typeof entry.id === 'string' ? entry.id : '';
+      li.innerHTML = `<span class="wishlist-item__name">${name}</span><button type="button" class="btn-secondary btn-sm wishlist-remove" data-id="${id}">Retirer</button>`;
+      ul?.appendChild(li);
+    });
+    root.appendChild(frag);
+    root.querySelectorAll('.wishlist-remove').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const next = readList().filter((x) => x.id !== id);
+        localStorage.setItem(KEY, JSON.stringify(next));
+        render();
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', render);
+  document.addEventListener('astro:page-load', render);
+</script>

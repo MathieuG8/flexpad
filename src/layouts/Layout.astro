@@ -1,9 +1,17 @@
 ---
+import { ViewTransitions } from 'astro:transitions';
+import GlassNav from '../components/GlassNav.astro';
+import AuthDock from '../components/AuthDock.astro';
+import CartWidget from '../components/CartWidget.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
 interface Props {
   title?: string;
+  /** Pages vitrine : main.css, fond hero sur toute la page, pied de page commun */
+  site?: boolean;
 }
 
-const { title = "Configuration Macropad" } = Astro.props;
+const { title = "Configuration Macropad", site = false } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -13,11 +21,55 @@ const { title = "Configuration Macropad" } = Astro.props;
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'><rect x='2' y='6' width='20' height='12' rx='1' fill='none' stroke='currentColor' stroke-width='2'/><rect x='5' y='9' width='2' height='2'/><rect x='9' y='9' width='2' height='2'/><rect x='13' y='9' width='2' height='2'/><rect x='17' y='9' width='2' height='2'/></svg>">
-  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  {site ? (
+    <link rel="stylesheet" href="/styles/main.css" />
+  ) : (
+    <link rel="stylesheet" href="/styles/global.css" />
+  )}
+  <link rel="stylesheet" href="/styles/glass-nav.css" />
+  <ViewTransitions />
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.563.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <slot />
+  <GlassNav />
+  {site && (
+    <div class="site-header-actions">
+      <AuthDock />
+      <CartWidget />
+    </div>
+  )}
+  {site ? (
+    <div class="main-page">
+      <div class="main-page-backdrop" aria-hidden="true">
+        <div class="main-page-backdrop__stage">
+          <div class="parallax-layer parallax-layer--deep" data-speed="0.3"></div>
+          <div class="parallax-layer parallax-layer--grid" data-speed="0.5"></div>
+          <div class="hero-circuit hero-circuit--1"></div>
+          <div class="hero-circuit hero-circuit--2"></div>
+          <div class="hero-circuit hero-circuit--3"></div>
+          <div class="hero-circuit hero-circuit--4"></div>
+          <div class="hero-circuit hero-circuit--5"></div>
+          <div class="hero-circuit hero-circuit--6"></div>
+          <div class="hero-circuit hero-circuit--7"></div>
+        </div>
+      </div>
+      <div class="main-page-content">
+        <div class="main-page-main">
+          <slot />
+        </div>
+        <SiteFooter />
+      </div>
+    </div>
+  ) : (
+    <slot />
+  )}
   <script src="/scripts/main.js" type="module"></script>
+  <script src="/scripts/cart.js" type="module"></script>
+  <script src="/scripts/checkout-page.js" type="module"></script>
+  <script src="/scripts/contact-page.js" type="module"></script>
+  <script src="/scripts/config-page.js" type="module"></script>
 </body>
 </html>

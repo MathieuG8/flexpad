@@ -8,13 +8,32 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:seed": "node scripts/seed-user.mjs",
+    "db:studio": "drizzle-kit studio"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   },
   "dependencies": {
+    "@astrojs/node": "^8.3.4",
+    "@auth/core": "^0.37.3",
     "astro": "^4.0.0",
+    "auth-astro": "^4.2.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
+    "cookie": "^1.1.1",
+    "drizzle-orm": "^0.45.2",
     "lucide-astro": "^0.294.0"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0"
+    "@types/bcryptjs": "^3.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.10.0",
+    "drizzle-kit": "^0.31.10"
   }
 }

@@ -1,0 +1,171 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout site title="Fonctionnalités | FlexPad - BE PRODUCTIVE">
+  <div class="page-content">
+    <nav class="breadcrumb">
+      <a href="/">Accueil</a>
+      <span class="separator">/</span>
+      <span>Fonctionnalités</span>
+    </nav>
+
+    <main class="content-section">
+      <h1 class="page-title reveal">Fonctionnalités</h1>
+      <p class="page-lead reveal reveal-delay-1">
+        FlexPad regroupe clavier HID, macros, profils, rétroéclairage intelligent et maintenance firmware
+        dans un seul appareil — configurable depuis le navigateur, branché en USB ou appairé en Bluetooth.
+      </p>
+
+      <div class="page-stats-row reveal reveal-delay-1">
+        <div class="page-stat">
+          <strong>5×4</strong>
+          <span>grille + Profile</span>
+        </div>
+        <div class="page-stat">
+          <strong>3</strong>
+          <span>types de touches + macros</span>
+        </div>
+        <div class="page-stat">
+          <strong>OTA</strong>
+          <span>mises à jour sans fil</span>
+        </div>
+      </div>
+
+      <div class="compare-table-wrap reveal reveal-delay-2">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>Critère</th>
+              <th>FlexPad</th>
+              <th>Pavé classique</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Macros &amp; médias</td>
+              <td class="check">Oui, par touche</td>
+              <td>Souvent limité</td>
+            </tr>
+            <tr>
+              <td>Profils stockés sur l’appareil</td>
+              <td class="check">Flash ESP32</td>
+              <td>Rarement</td>
+            </tr>
+            <tr>
+              <td>Configuration sans logiciel</td>
+              <td class="check">Web Serial / BLE</td>
+              <td>Non</td>
+            </tr>
+            <tr>
+              <td>Écran + encodeur</td>
+              <td class="check">Intégrés</td>
+              <td>Variable</td>
+            </tr>
+            <tr>
+              <td>Open source / évolutif</td>
+              <td class="check">Firmware &amp; UI web</td>
+              <td>Propriétaire en général</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="features-page-grid">
+        <section class="feature-block reveal">
+          <div class="feature-block-icon">⌨️</div>
+          <h2>20 touches programmables</h2>
+          <p>
+            Grille 5×4 avec touche Profile pour changer de profil à la volée. Chaque emplacement accepte une
+            touche simple, un modificateur (Ctrl, Shift, Alt, GUI), une action média (volume, lecture, etc.)
+            ou une macro complète avec délais entre les frappes.
+          </p>
+        </section>
+
+        <section class="feature-block reveal reveal-delay-1">
+          <div class="feature-block-icon">📋</div>
+          <h2>Profils multiples</h2>
+          <p>
+            Créez, renommez et supprimez des profils selon vos contextes (bureau, logiciel de CAO, montage
+            vidéo…). La configuration est persistée dans la flash de l’ESP32 : branchez ou appairez
+            l’appareil, vos réglages sont déjà là.
+          </p>
+        </section>
+
+        <section class="feature-block reveal reveal-delay-2">
+          <div class="feature-block-icon">🌐</div>
+          <h2>Interface web — Web Serial &amp; Bluetooth</h2>
+          <p>
+            L’outil sur <a href="/config/">/config/</a> tourne dans le navigateur : connexion USB via Web
+            Serial ou sans fil via Web Bluetooth. Aucun installeur — idéal pour Windows, macOS ou Linux
+            récents.
+          </p>
+        </section>
+
+        <section class="feature-block reveal">
+          <div class="feature-block-icon">🎨</div>
+          <h2>Rétroéclairage &amp; ambiant</h2>
+          <p>
+            Réglage manuel 0–100&nbsp;% ou mode « selon l’environnement » : le capteur de luminosité
+            (ATmega) adapte l’intensité pour rester confortable jour et nuit.
+          </p>
+        </section>
+
+        <section class="feature-block reveal reveal-delay-1">
+          <div class="feature-block-icon">🖥️</div>
+          <h2>Écran couleur</h2>
+          <p>
+            Affichage du profil actif et d’informations utiles pilotées depuis le panneau Display de
+            l’interface, en lien avec le firmware sur ATmega (pilote ST7789).
+          </p>
+        </section>
+
+        <section class="feature-block reveal reveal-delay-2">
+          <div class="feature-block-icon">🔊</div>
+          <h2>Encodeur rotatif</h2>
+          <p>
+            Rotation pour volume +/− (HID Consumer Control), clic pour muet — reconnu sur les systèmes
+            majeurs sans pilote supplémentaire.
+          </p>
+        </section>
+
+        <section class="feature-block reveal">
+          <div class="feature-block-icon">☀️</div>
+          <h2>Capteur de luminosité</h2>
+          <p>
+            Mesure continue de la lumière ambiante pour caler automatiquement le rétroéclairage lorsque
+            vous activez le mode environnement.
+          </p>
+        </section>
+
+        <section class="feature-block reveal reveal-delay-1">
+          <div class="feature-block-icon">📤</div>
+          <h2>Export / import JSON</h2>
+          <p>
+            Sauvegardez toute votre configuration dans un fichier JSON, dupliquez-la sur un autre poste ou
+            restaurez une version antérieure en quelques secondes.
+          </p>
+        </section>
+
+        <section class="feature-block reveal reveal-delay-2">
+          <div class="feature-block-icon">🔄</div>
+          <h2>Mise à jour OTA</h2>
+          <p>
+            Envoyez un binaire firmware (.bin) depuis l’onglet paramètres : barre de progression, retour
+            d’état et redémarrage pour garder FlexPad à jour sans câble de programmation.
+          </p>
+        </section>
+      </div>
+
+      <div class="features-cta reveal">
+        <a href="/product/" class="btn-primary">Voir le produit</a>
+        <a href="/config/" class="btn-secondary">Configurer l’appareil</a>
+      </div>
+
+      <div class="back-link reveal">
+        <a href="/">← Retour à l’accueil</a>
+      </div>
+    </main>
+  </div>
+
+</Layout>

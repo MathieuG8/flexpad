@@ -1,0 +1,43 @@
+---
+// Bouton Connexion / Compte à côté du panier (état session via /api/auth/session)
+---
+
+<div class="auth-dock">
+  <a href="/login" class="auth-dock__link" id="auth-dock-link" data-default-label="Connexion" data-logged-label="Compte">
+    <span class="auth-dock__icon" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </span>
+    <span class="auth-dock__label" id="auth-dock-label">Connexion</span>
+  </a>
+</div>
+
+<script>
+  function updateAuthDock() {
+    const link = document.getElementById('auth-dock-link');
+    const label = document.getElementById('auth-dock-label');
+    if (!link || !label) return;
+    const def = link.dataset.defaultLabel ?? 'Connexion';
+    const logged = link.dataset.loggedLabel ?? 'Compte';
+    fetch('/api/auth/session', { credentials: 'same-origin' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.user) {
+          link.setAttribute('href', '/dashboard');
+          label.textContent = logged;
+        } else {
+          link.setAttribute('href', '/login');
+          label.textContent = def;
+        }
+      })
+      .catch(() => {
+        link.setAttribute('href', '/login');
+        label.textContent = def;
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', updateAuthDock);
+  document.addEventListener('astro:page-load', updateAuthDock);
+</script>

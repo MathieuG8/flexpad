@@ -1,0 +1,120 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout site title="À propos | FlexPad - BE PRODUCTIVE">
+  <div class="page-content">
+    <nav class="breadcrumb">
+      <a href="/">Accueil</a>
+      <span class="separator">/</span>
+      <span>À propos</span>
+    </nav>
+
+    <main class="content-section">
+      <h1 class="page-title reveal">À propos de FlexPad</h1>
+      <p class="page-lead reveal reveal-delay-1">
+        FlexPad est un projet étudiant et produit de passion : un pavé numérique programmable qui allie
+        électronique embarquée, firmware ouvert et une interface web moderne pour la configuration.
+      </p>
+
+      <div class="page-stats-row reveal reveal-delay-1">
+        <div class="page-stat">
+          <strong>20</strong>
+          <span>touches configurables</span>
+        </div>
+        <div class="page-stat">
+          <strong>USB + BLE</strong>
+          <span>connexion flexible</span>
+        </div>
+        <div class="page-stat">
+          <strong>Web</strong>
+          <span>aucune appli à installer</span>
+        </div>
+      </div>
+
+      <section class="about-block reveal reveal-delay-1">
+        <h2>Notre mission</h2>
+        <p>
+          Offrir aux créateurs, développeurs et professionnels un outil physique concret pour accélérer
+          les raccourcis, macros et contrôles média — sans sacrifier le plaisir de bricoler et d’adapter
+          le matériel à son propre flux de travail. Chaque touche peut être une touche simple, un
+          modificateur, une action média ou une macro avec délais, le tout sauvegardé dans la mémoire flash
+          de l’ESP32.
+        </p>
+      </section>
+
+      <section class="about-block reveal reveal-delay-2">
+        <h2>Ce qui nous guide</h2>
+        <div class="about-values">
+          <div class="about-value-card">
+            <h3>Transparence</h3>
+            <p>
+              Documentation claire sur le matériel (ESP32-S3, ATmega328P) et des parcours de configuration
+              explicites dans l’interface web.
+            </p>
+          </div>
+          <div class="about-value-card">
+            <h3>Accessibilité</h3>
+            <p>
+              Configuration via navigateur avec Web Serial (USB) ou Web Bluetooth, sans dépendre d’un
+              logiciel propriétaire lourd.
+            </p>
+          </div>
+          <div class="about-value-card">
+            <h3>Évolutivité</h3>
+            <p>
+              Profils multiples, export / import JSON et mises à jour OTA pour faire vivre le firmware et
+              la config dans le temps.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="about-block reveal">
+        <h2>Pile technique</h2>
+        <p>
+          FlexPad repose sur une architecture en deux microcontrôleurs : l’ESP32-S3 assure la connectivité
+          USB et Bluetooth Low Energy (HID), tandis que l’ATmega328P prend en charge l’écran, le
+          rétroéclairage, le capteur de luminosité et l’encodeur rotatif. L’interface de configuration
+          est une application web statique qui communique directement avec l’appareil.
+        </p>
+        <ul class="tech-list">
+          <li>ESP32-S3 — USB, BLE, stockage des profils et touches</li>
+          <li>ATmega328P — affichage ST7789, LED, capteur ambiant, encodeur</li>
+          <li>Interface Astro — pages vitrine + outil <a href="/config/">/config/</a></li>
+          <li>OTA — envoi de firmware .bin avec suivi de progression</li>
+        </ul>
+      </section>
+
+      <section class="about-block reveal reveal-delay-1">
+        <h2>Le créateur</h2>
+        <div class="creator-card">
+          <div class="creator-info">
+            <h3>Mathieu Goulet</h3>
+            <p class="creator-role">Créateur de FlexPad — BE PRODUCTIVE</p>
+            <p class="creator-bio">
+              Passionné par l’électronique, le développement embarqué et les interfaces utilisateur,
+              j’ai conçu FlexPad comme projet de fin de session : un objet réel, documenté et utilisable
+              au quotidien, avec une vitrine web cohérente et un configurateur fonctionnel.
+            </p>
+            <div class="page-cta-row">
+              <a href="/contact/" class="btn-primary">Me contacter</a>
+              <a href="https://github.com/MathieuG8" class="btn-secondary" target="_blank" rel="noopener">GitHub</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="page-cta-row reveal reveal-delay-2">
+        <a href="/product/" class="btn-primary">Voir le produit</a>
+        <a href="/features/" class="btn-secondary">Fonctionnalités</a>
+        <a href="/config/" class="btn-secondary">Ouvrir la configuration</a>
+      </div>
+
+      <div class="back-link reveal">
+        <a href="/">← Retour à l’accueil</a>
+      </div>
+    </main>
+  </div>
+
+</Layout>
