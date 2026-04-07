@@ -1,0 +1,127 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+export const prerender = false;
+
+const callbackUrl = Astro.url.searchParams.get('callbackUrl') ?? '/dashboard';
+const title = 'Connexion | FlexPad';
+---
+
+<Layout {title} site>
+  <div class="page-content auth-page">
+    <main class="content-section auth-page__main">
+      <h1 class="page-title">Connexion</h1>
+      <p class="page-lead">Accédez à votre tableau de bord FlexPad.</p>
+
+      <form class="auth-form" id="login-form" novalidate>
+        <div class="form-group">
+          <label for="login-email">Courriel</label>
+          <input type="email" id="login-email" name="email" class="form-control-like" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="login-password">Mot de passe</label>
+          <input type="password" id="login-password" name="password" class="form-control-like" required autocomplete="current-password" />
+        </div>
+        <p class="auth-form__error" id="login-error" hidden></p>
+        <button type="submit" class="btn-primary">Se connecter</button>
+      </form>
+
+      <p class="auth-page__hint">
+        Compte démo : <code>demo@flexpad.local</code> / <code>flexpad-demo</code> (après <code>pnpm run db:seed</code>).
+      </p>
+
+      <div class="back-link">
+        <a href="/">← Retour à l’accueil</a>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script define:vars={{ callbackUrl }}>
+  const form = document.getElementById('login-form');
+  const errEl = document.getElementById('login-error');
+
+  /** Connexion credentials sans `auth-astro/client` : leur `signIn` fait `new URL(data.url)` sans base, ce qui jette si Auth renvoie une URL relative (succès). */
+  async function signInCredentials(email, password, nextUrl) {
+    const prefix = '/api/auth';
+    const csrfRes = await fetch(`${prefix}/csrf`, { credentials: 'same-origin' });
+    if (!csrfRes.ok) throw new Error(`CSRF HTTP ${csrfRes.status}`);
+    const csrfJson = await csrfRes.json();
+    const csrfToken = csrfJson?.csrfToken;
+    if (!csrfToken) throw new Error('Jeton CSRF manquant');
+
+    const res = await fetch(`${prefix}/callback/credentials`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Auth-Return-Redirect': '1',
+      },
+      credentials: 'same-origin',
+      body: new URLSearchParams({
+        email: String(email ?? ''),
+        password: String(password ?? ''),
+        csrfToken,
+        callbackUrl: nextUrl,
+      }),
+    });
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      console.error('[login] JSON invalide', parseErr);
+      throw new Error('Réponse serveur invalide');
+    }
+
+    const rawUrl = typeof data?.url === 'string' ? data.url : '';
+    let target = nextUrl;
+    let authError = null;
+    if (rawUrl) {
+      try {
+        const u =
+          rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
+            ? new URL(rawUrl)
+            : new URL(rawUrl, window.location.origin);
+        authError = u.searchParams.get('error');
+        target = u.href;
+      } catch (urlErr) {
+        console.error('[login] URL de redirection invalide', rawUrl, urlErr);
+        throw new Error('Redirection invalide');
+      }
+    }
+
+    if (authError) {
+      return { ok: false, error: 'credentials' };
+    }
+    return { ok: true, redirectTo: target };
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (errEl) {
+      errEl.hidden = true;
+      errEl.textContent = '';
+    }
+    const fd = new FormData(form);
+    const email = fd.get('email');
+    const password = fd.get('password');
+    const nextUrl = callbackUrl || '/dashboard';
+    try {
+      const out = await signInCredentials(email, password, nextUrl);
+      if (!out.ok) {
+        if (errEl) {
+          errEl.textContent = 'Courriel ou mot de passe incorrect.';
+          errEl.hidden = false;
+        }
+        return;
+      }
+      window.location.assign(out.redirectTo);
+    } catch (err) {
+      console.error('[login]', err);
+      if (errEl) {
+        errEl.textContent = 'Une erreur est survenue. Réessayez.';
+        errEl.hidden = false;
+      }
+    }
+  });
+</script>

@@ -39,7 +39,11 @@ export default defineConfig({
         const password = credentials?.password as string | undefined;
         if (!email || !password) return null;
 
-        const row = await db.select().from(users).where(eq(users.email, email)).get();
+        const [row] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
         if (!row?.passwordHash) return null;
 
         const ok = await bcrypt.compare(password, row.passwordHash);

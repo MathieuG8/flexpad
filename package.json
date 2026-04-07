@@ -1,5 +1,13 @@
 {
   "name": "macropad-config-interface",
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "0.45.2"
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "type": "module",
   "version": "1.0.0",
   "description": "Interface web de configuration pour macropad avec ESP32-S3 et ATmega328P",
@@ -11,29 +19,24 @@
     "astro": "astro",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:seed": "node scripts/seed-user.mjs",
+    "db:seed": "tsx scripts/seed-user.ts",
     "db:studio": "drizzle-kit studio"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3"
-    ]
-  },
   "dependencies": {
-    "@astrojs/node": "^8.3.4",
+    "@astrojs/vercel": "7.8.2",
     "@auth/core": "^0.37.3",
+    "@neondatabase/serverless": "^1.0.2",
     "astro": "^4.0.0",
     "auth-astro": "^4.2.0",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.8.0",
     "cookie": "^1.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-astro": "^0.294.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.10.0",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0"
   }
 }

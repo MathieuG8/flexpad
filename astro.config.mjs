@@ -1,11 +1,12 @@
-import node from '@astrojs/node';
+import vercel from '@astrojs/vercel/serverless';
 import { defineConfig } from 'astro/config';
 import auth from 'auth-astro';
 
 // https://astro.build/config
+// Vercel : adapter serverless (pas @astrojs/node, réservé aux VPS / Docker).
 export default defineConfig({
   output: 'hybrid',
-  adapter: node({ mode: 'standalone' }),
+  adapter: vercel(),
   integrations: [
     auth({
       // Route définie dans src/pages/api/auth/[...auth].ts pour que hybrid + dev

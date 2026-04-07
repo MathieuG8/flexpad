@@ -35,8 +35,12 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  const result = db.update(orders).set({ status }).where(eq(orders.id, orderId)).run();
-  if (result.changes === 0) {
+  const updated = await db
+    .update(orders)
+    .set({ status })
+    .where(eq(orders.id, orderId))
+    .returning({ id: orders.id });
+  if (updated.length === 0) {
     return new Response(JSON.stringify({ error: 'Commande introuvable' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' },

@@ -1,0 +1,64 @@
+import { c as createComponent, g as renderComponent, r as renderTemplate, d as createAstro, m as maybeRenderHead, e as addAttribute } from '../../chunks/astro/server_Cfy4trcV.mjs';
+import { $ as $$Layout } from '../../chunks/Layout_Dz_HxGPl.mjs';
+import { $ as $$DashboardChrome } from '../../chunks/DashboardChrome_B_dJmZh-.mjs';
+import { g as getSession, d as db, o as orders } from '../../chunks/server_DSDCZ1go.mjs';
+import { eq, desc } from 'drizzle-orm';
+import { f as formatCadFromCents } from '../../chunks/orders_DfkalkK-.mjs';
+export { renderers } from '../../renderers.mjs';
+
+const $$Astro = createAstro();
+const prerender = false;
+const $$Index = createComponent(async ($$result, $$props, $$slots) => {
+  const Astro2 = $$result.createAstro($$Astro, $$props, $$slots);
+  Astro2.self = $$Index;
+  const session = await getSession(Astro2.request);
+  if (!session?.user) {
+    return Astro2.redirect("/login?callbackUrl=/dashboard/orders");
+  }
+  const userOrders = await db.select().from(orders).where(eq(orders.userId, session.user.id)).orderBy(desc(orders.createdAt));
+  function parseItems(json) {
+    try {
+      const o = JSON.parse(json);
+      return Array.isArray(o.items) ? o.items : [];
+    } catch {
+      return [];
+    }
+  }
+  function statusLabel(s) {
+    const m = {
+      confirmed: "Confirm\xE9e",
+      processing: "En traitement",
+      shipped: "Exp\xE9di\xE9e",
+      cancelled: "Annul\xE9e"
+    };
+    return m[s] ?? s;
+  }
+  const title = "Mes commandes | FlexPad";
+  const isAdmin = session.user.role === "admin";
+  return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": title, "site": true }, { "default": async ($$result2) => renderTemplate` ${maybeRenderHead()}<div class="page-content dashboard-page dashboard-page--chrome"> ${renderComponent($$result2, "DashboardChrome", $$DashboardChrome, { "variant": "user", "title": "Mes commandes", "subtitle": "Commandes enregistr\xE9es sur ce compte (checkout effectu\xE9 en \xE9tant connect\xE9).", "userName": session.user.name ?? session.user.email ?? "Utilisateur", "userEmail": session.user.email ?? "", "isAdmin": isAdmin }, { "default": async ($$result3) => renderTemplate`${userOrders.length === 0 ? renderTemplate`<div class="dashboard-card reveal visible dash-empty"> <p class="dash-empty__icon" aria-hidden="true">📦</p> <h2 class="dashboard-card__title">Aucune commande</h2> <p class="dashboard-note">
+Passez une commande depuis la page <a href="/checkout/">Commander</a> en étant connecté pour la voir ici.
+</p> <a href="/product/" class="btn-primary">Voir le produit</a> </div>` : renderTemplate`<div class="dash-order-list"> ${userOrders.map((order) => {
+    const items = parseItems(order.cartJson);
+    const qty = items.reduce((n, i) => n + (i.quantity ?? 0), 0);
+    return renderTemplate`<article class="dashboard-card reveal visible dash-order-card"> <header class="dash-order-card__head"> <div> <h2 class="dashboard-card__title dash-order-card__ref">${order.reference}</h2> <p class="dash-order-card__date"> ${order.createdAt ? new Date(order.createdAt).toLocaleDateString("fr-CA", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    }) : ""} </p> </div> <div class="dash-order-card__totals"> <span${addAttribute(`dash-status dash-status--${order.status}`, "class")}>${statusLabel(order.status)}</span> <strong class="dash-order-card__price">${formatCadFromCents(order.totalCents)}</strong> <span class="dash-order-card__qty">${qty} article${qty !== 1 ? "s" : ""}</span> </div> </header> ${items.length > 0 && renderTemplate`<ul class="dash-order-items"> ${items.map((item, idx) => renderTemplate`<li> <span>${item.name ?? `Article ${idx + 1}`}</span> <span>Qté ${item.quantity ?? 0}</span> <span> ${formatCadFromCents(Math.round((item.price ?? 0) * (item.quantity ?? 0) * 100))} </span> </li>`)} </ul>`} </article>`;
+  })} </div>`}` })} </div> ` })}`;
+}, "C:/Users/Mathieu/OneDrive - Cegep Gerald-Godin/Cegep Gerald-Godin/Session_6/Projet_Finale/Numpad/Projet_Final/src/pages/dashboard/orders/index.astro", void 0);
+
+const $$file = "C:/Users/Mathieu/OneDrive - Cegep Gerald-Godin/Cegep Gerald-Godin/Session_6/Projet_Finale/Numpad/Projet_Final/src/pages/dashboard/orders/index.astro";
+const $$url = "/dashboard/orders";
+
+const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: $$Index,
+  file: $$file,
+  prerender,
+  url: $$url
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const page = () => _page;
+
+export { page };

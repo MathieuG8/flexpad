@@ -1,20 +1,18 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema';
 
-function resolveDbFile(): string {
-  const raw = process.env.DATABASE_URL ?? 'file:./data/flexpad.db';
-  const filePath = raw.startsWith('file:') ? raw.slice('file:'.length) : raw;
-  return path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
+function requirePostgresUrl(): string {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url || !/^postgres(ql)?:\/\//i.test(url)) {
+    throw new Error(
+      'DATABASE_URL doit être une URL PostgreSQL (ex. Neon via Vercel : Marketplace → Neon, plan gratuit). ' +
+        'Copie la chaîne `postgresql://…` dans .env et sur Vercel (Variables d’environnement).',
+    );
+  }
+  return url;
 }
 
-const dbFile = resolveDbFile();
-fs.mkdirSync(path.dirname(dbFile), { recursive: true });
-
-const sqlite = new Database(dbFile);
-sqlite.pragma('journal_mode = WAL');
-
-export const db = drizzle(sqlite, { schema });
+const sql = neon(requirePostgresUrl());
+export const db = drizzle(sql, { schema });
 export { schema };

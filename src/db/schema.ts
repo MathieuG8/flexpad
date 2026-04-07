@@ -1,24 +1,21 @@
-import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 /** Utilisateurs — Auth.js (JWT) + mot de passe hashé (bcrypt) pour le provider Credentials */
-export const users = sqliteTable('users', {
+export const users = pgTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   name: text('name'),
   /** Hash bcrypt ; null si compte réservé à de futurs fournisseurs OAuth */
   passwordHash: text('password_hash'),
   image: text('image'),
-  emailVerified: integer('email_verified', { mode: 'timestamp' }),
+  emailVerified: timestamp('email_verified', { mode: 'date' }),
   /** `user` | `admin` */
   role: text('role').notNull().default('user'),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 /** Commandes enregistrées (checkout connecté) */
-export const orders = sqliteTable('orders', {
+export const orders = pgTable('orders', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
@@ -32,9 +29,7 @@ export const orders = sqliteTable('orders', {
   tpsCents: integer('tps_cents').notNull(),
   tvqCents: integer('tvq_cents').notNull(),
   totalCents: integer('total_cents').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 });
 
 export type User = typeof users.$inferSelect;

@@ -49,20 +49,18 @@ export const POST: APIRoute = async ({ request }) => {
 
   const id = randomUUID();
 
-  db.insert(orders)
-    .values({
-      id,
-      userId: session.user.id,
-      reference,
-      status: 'confirmed',
-      cartJson: JSON.stringify({ items: normalized.items, total: normalized.subtotalCents / 100 }),
-      shippingJson,
-      subtotalCents: normalized.subtotalCents,
-      tpsCents,
-      tvqCents,
-      totalCents,
-    })
-    .run();
+  await db.insert(orders).values({
+    id,
+    userId: session.user.id,
+    reference,
+    status: 'confirmed',
+    cartJson: JSON.stringify({ items: normalized.items, total: normalized.subtotalCents / 100 }),
+    shippingJson,
+    subtotalCents: normalized.subtotalCents,
+    tpsCents,
+    tvqCents,
+    totalCents,
+  });
 
   return new Response(JSON.stringify({ ok: true, orderId: id, reference }), {
     status: 200,
