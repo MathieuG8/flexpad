@@ -9,6 +9,9 @@
     ]
   },
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "version": "1.0.0",
   "description": "Interface web de configuration pour macropad avec ESP32-S3 et ATmega328P",
   "scripts": {
